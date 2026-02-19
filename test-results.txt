@@ -1,0 +1,680 @@
+
+> accounts.bfeai@1.0.0 test:e2e
+> playwright test
+
+
+Running 38 tests using 8 workers
+
+[1A[2K[1/38] [chromium] › tests\e2e\auth.spec.ts:30:7 › Authentication Flow › failed login with invalid email
+[1A[2K[2/38] [chromium] › tests\e2e\auth.spec.ts:11:7 › Authentication Flow › successful login with valid credentials
+[1A[2K[3/38] [chromium] › tests\e2e\auth.spec.ts:112:7 › Authentication Flow › validation shows error for empty password
+[1A[2K[4/38] [chromium] › tests\e2e\auth.spec.ts:67:7 › Authentication Flow › login with redirect parameter
+[1A[2K[5/38] [chromium] › tests\e2e\auth.spec.ts:80:7 › Authentication Flow › session persists across page reloads
+[1A[2K[6/38] [chromium] › tests\e2e\auth.spec.ts:48:7 › Authentication Flow › failed login with invalid password
+[1A[2K[7/38] [chromium] › tests\e2e\auth.spec.ts:125:7 › Authentication Flow › validation shows error for invalid email format
+[1A[2K[8/38] [chromium] › tests\e2e\auth.spec.ts:99:7 › Authentication Flow › validation shows error for empty email
+[1A[2K  1) [chromium] › tests\e2e\auth.spec.ts:99:7 › Authentication Flow › validation shows error for empty email 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByRole('alert')
+    Expected pattern: [32m/invalid.*email/i[39m
+    Error: strict mode violation: getByRole('alert') resolved to 2 elements:
+        1) <p role="alert" class="text-sm text-red-600">Invalid email address</p> aka getByText('Invalid email address')
+        2) <div role="alert" aria-live="assertive" id="__next-route-announcer__"></div> aka locator('[id="__next-route-announcer__"]')
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 3000ms[22m
+    [2m  - waiting for getByRole('alert')[22m
+
+
+      105 |
+      106 |     // Should show validation error - empty email triggers "Invalid email address"
+    > 107 |     await expect(page.getByRole('alert')).toContainText(/invalid.*email/i, {
+          |                                           ^
+      108 |       timeout: 3000,
+      109 |     });
+      110 |   });
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\auth.spec.ts:107:43
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\auth-Authentication-Flow-v-a5500-shows-error-for-empty-email-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\auth-Authentication-Flow-v-a5500-shows-error-for-empty-email-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\auth-Authentication-Flow-v-a5500-shows-error-for-empty-email-chromium\error-context.md
+
+
+[1A[2K  2) [chromium] › tests\e2e\auth.spec.ts:112:7 › Authentication Flow › validation shows error for empty password 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByRole('alert')
+    Expected pattern: [32m/password.*required/i[39m
+    Error: strict mode violation: getByRole('alert') resolved to 2 elements:
+        1) <p role="alert" class="text-sm text-red-600">Password is required</p> aka getByText('Password is required')
+        2) <div role="alert" aria-live="assertive" id="__next-route-announcer__"></div> aka locator('[id="__next-route-announcer__"]')
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 3000ms[22m
+    [2m  - waiting for getByRole('alert')[22m
+
+
+      118 |
+      119 |     // Should show validation error - "Password is required"
+    > 120 |     await expect(page.getByRole('alert')).toContainText(/password.*required/i, {
+          |                                           ^
+      121 |       timeout: 3000,
+      122 |     });
+      123 |   });
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\auth.spec.ts:120:43
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\auth-Authentication-Flow-v-72edf-ws-error-for-empty-password-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\auth-Authentication-Flow-v-72edf-ws-error-for-empty-password-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\auth-Authentication-Flow-v-72edf-ws-error-for-empty-password-chromium\error-context.md
+
+
+[1A[2K[9/38] [chromium] › tests\e2e\avatar-upload.spec.ts:85:7 › Avatar Upload › validates file types
+[1A[2K[10/38] [chromium] › tests\e2e\avatar-upload.spec.ts:92:7 › Avatar Upload › shows loading state during upload
+[1A[2K[11/38] [chromium] › tests\e2e\password-reset.spec.ts:11:7 › Password Reset Flow › forgot password page loads correctly
+[1A[2K[12/38] [chromium] › tests\e2e\password-reset.spec.ts:21:7 › Password Reset Flow › forgot password shows success message
+[1A[2K[13/38] [chromium] › tests\e2e\password-reset.spec.ts:38:7 › Password Reset Flow › forgot password validates email format
+[1A[2K[14/38] [chromium] › tests\e2e\avatar-upload.spec.ts:14:7 › Avatar Upload › complete avatar upload and display flow
+[1A[2K[15/38] [chromium] › tests\e2e\avatar-upload.spec.ts:77:7 › Avatar Upload › validates file size limits
+[1A[2K[16/38] [chromium] › tests\e2e\password-reset.spec.ts:53:7 › Password Reset Flow › forgot password requires email
+[1A[2K  3) [chromium] › tests\e2e\auth.spec.ts:125:7 › Authentication Flow › validation shows error for invalid email format 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByRole('alert')
+    Expected pattern: [32m/invalid.*email/i[39m
+    Received string:  [31m""[39m
+    Timeout: 3000ms
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 3000ms[22m
+    [2m  - waiting for getByRole('alert')[22m
+    [2m    7 × locator resolved to <div role="alert" aria-live="assertive" id="__next-route-announcer__"></div>[22m
+    [2m      - unexpected value ""[22m
+
+
+      135 |
+      136 |     // Should show email format validation error - "Invalid email address"
+    > 137 |     await expect(page.getByRole('alert')).toContainText(/invalid.*email/i, {
+          |                                           ^
+      138 |       timeout: 3000,
+      139 |     });
+      140 |   });
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\auth.spec.ts:137:43
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\auth-Authentication-Flow-v-fa8a1-or-for-invalid-email-format-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\auth-Authentication-Flow-v-fa8a1-or-for-invalid-email-format-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\auth-Authentication-Flow-v-fa8a1-or-for-invalid-email-format-chromium\error-context.md
+
+
+[1A[2K  4) [chromium] › tests\e2e\password-reset.spec.ts:53:7 › Password Reset Flow › forgot password requires email 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByRole('alert')
+    Expected pattern: [32m/invalid.*email/i[39m
+    Error: strict mode violation: getByRole('alert') resolved to 2 elements:
+        1) <p role="alert" class="text-sm text-red-600">Invalid email address</p> aka getByText('Invalid email address')
+        2) <div role="alert" aria-live="assertive" id="__next-route-announcer__"></div> aka locator('[id="__next-route-announcer__"]')
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 3000ms[22m
+    [2m  - waiting for getByRole('alert')[22m
+
+
+      58 |
+      59 |     // Should show validation error - empty email shows "Invalid email address"
+    > 60 |     await expect(page.getByRole('alert')).toContainText(/invalid.*email/i, {
+         |                                           ^
+      61 |       timeout: 3000,
+      62 |     });
+      63 |   });
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\password-reset.spec.ts:60:43
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\password-reset-Password-Re-56f07-got-password-requires-email-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\password-reset-Password-Re-56f07-got-password-requires-email-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\password-reset-Password-Re-56f07-got-password-requires-email-chromium\error-context.md
+
+
+[1A[2K[17/38] [chromium] › tests\e2e\password-reset.spec.ts:101:7 › Password Reset Flow › reset password validates password confirmation
+[1A[2K[18/38] [chromium] › tests\e2e\password-reset.spec.ts:121:7 › Password Reset Flow › reset password shows password strength indicator
+[1A[2K[19/38] [chromium] › tests\e2e\password-reset.spec.ts:65:7 › Password Reset Flow › reset password page shows invalid link for missing token
+[1A[2K[20/38] [chromium] › tests\e2e\password-reset.spec.ts:137:7 › Password Reset Flow › reset password page has back to login link
+[1A[2K[21/38] [chromium] › tests\e2e\profile.spec.ts:11:7 › Profile Page › profile page accessible after login
+[1A[2K[22/38] [chromium] › tests\e2e\password-reset.spec.ts:81:7 › Password Reset Flow › reset password validates password requirements
+[1A[2K  5) [chromium] › tests\e2e\password-reset.spec.ts:101:7 › Password Reset Flow › reset password validates password confirmation 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByRole('alert')
+    Expected pattern: [32m/password.*don't match/i[39m
+    Error: strict mode violation: getByRole('alert') resolved to 2 elements:
+        1) <p role="alert" class="text-sm text-red-600">Passwords don't match</p> aka getByText('Passwords don\'t match')
+        2) <div role="alert" aria-live="assertive" id="__next-route-announcer__"></div> aka locator('[id="__next-route-announcer__"]')
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 3000ms[22m
+    [2m  - waiting for getByRole('alert')[22m
+
+
+      114 |
+      115 |     // Should show validation error - "Passwords don't match"
+    > 116 |     await expect(page.getByRole('alert')).toContainText(/password.*don't match/i, {
+          |                                           ^
+      117 |       timeout: 3000,
+      118 |     });
+      119 |   });
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\password-reset.spec.ts:116:43
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\password-reset-Password-Re-e67cf-dates-password-confirmation-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\password-reset-Password-Re-e67cf-dates-password-confirmation-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\password-reset-Password-Re-e67cf-dates-password-confirmation-chromium\error-context.md
+
+
+[1A[2K  6) [chromium] › tests\e2e\password-reset.spec.ts:38:7 › Password Reset Flow › forgot password validates email format 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByRole('alert')
+    Expected pattern: [32m/invalid.*email/i[39m
+    Received string:  [31m""[39m
+    Timeout: 3000ms
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 3000ms[22m
+    [2m  - waiting for getByRole('alert')[22m
+    [2m    7 × locator resolved to <div role="alert" aria-live="assertive" id="__next-route-announcer__"></div>[22m
+    [2m      - unexpected value ""[22m
+
+
+      46 |
+      47 |     // Should show validation error - "Invalid email address"
+    > 48 |     await expect(page.getByRole('alert')).toContainText(/invalid.*email/i, {
+         |                                           ^
+      49 |       timeout: 3000,
+      50 |     });
+      51 |   });
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\password-reset.spec.ts:48:43
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\password-reset-Password-Re-0267c-word-validates-email-format-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\password-reset-Password-Re-0267c-word-validates-email-format-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\password-reset-Password-Re-0267c-word-validates-email-format-chromium\error-context.md
+
+
+[1A[2K[23/38] [chromium] › tests\e2e\profile.spec.ts:52:7 › Profile Page › profile page has logout functionality
+[1A[2K  7) [chromium] › tests\e2e\password-reset.spec.ts:21:7 › Password Reset Flow › forgot password shows success message 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('heading', { name: /check.*email/i })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByRole('heading', { name: /check.*email/i })[22m
+
+
+      31 |
+      32 |     // Should show success message - "Check your email"
+    > 33 |     await expect(page.getByRole('heading', { name: /check.*email/i })).toBeVisible({
+         |                                                                        ^
+      34 |       timeout: 5000,
+      35 |     });
+      36 |   });
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\password-reset.spec.ts:33:72
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\password-reset-Password-Re-ba038-sword-shows-success-message-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\password-reset-Password-Re-ba038-sword-shows-success-message-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\password-reset-Password-Re-ba038-sword-shows-success-message-chromium\error-context.md
+
+
+[1A[2K[24/38] [chromium] › tests\e2e\signup.spec.ts:37:7 › Signup Flow › shows error for duplicate email
+[1A[2K[25/38] [chromium] › tests\e2e\signup.spec.ts:61:7 › Signup Flow › validation shows error for password mismatch
+[1A[2K[26/38] [chromium] › tests\e2e\profile.spec.ts:24:7 › Profile Page › profile page shows user information
+[1A[2K[27/38] [chromium] › tests\e2e\profile.spec.ts:44:7 › Profile Page › unauthenticated users redirected to login
+[1A[2K  8) [chromium] › tests\e2e\signup.spec.ts:61:7 › Signup Flow › validation shows error for password mismatch 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByRole('alert')
+    Expected pattern: [32m/password.*don't match/i[39m
+    Error: strict mode violation: getByRole('alert') resolved to 2 elements:
+        1) <p role="alert" class="text-sm text-red-600">Invalid input: expected boolean, received string</p> aka getByText('Invalid input: expected')
+        2) <div role="alert" aria-live="assertive" id="__next-route-announcer__"></div> aka locator('[id="__next-route-announcer__"]')
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 3000ms[22m
+    [2m  - waiting for getByRole('alert')[22m
+
+
+      74 |
+      75 |     // Should show password mismatch error - "Passwords don't match"
+    > 76 |     await expect(page.getByRole('alert')).toContainText(/password.*don't match/i, {
+         |                                           ^
+      77 |       timeout: 3000,
+      78 |     });
+      79 |   });
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\signup.spec.ts:76:43
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\signup-Signup-Flow-validat-d1608-error-for-password-mismatch-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\signup-Signup-Flow-validat-d1608-error-for-password-mismatch-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\signup-Signup-Flow-validat-d1608-error-for-password-mismatch-chromium\error-context.md
+
+
+[1A[2K[28/38] [chromium] › tests\e2e\signup.spec.ts:11:7 › Signup Flow › successful signup with valid data
+[1A[2K[29/38] [chromium] › tests\e2e\signup.spec.ts:100:7 › Signup Flow › validation shows error for empty full name
+[1A[2K[30/38] [chromium] › tests\e2e\signup.spec.ts:81:7 › Signup Flow › validation shows error for weak password
+[1A[2K  9) [chromium] › tests\e2e\signup.spec.ts:11:7 › Signup Flow › successful signup with valid data ──
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBeDefined[2m()[22m
+
+    Received: [31mundefined[39m
+
+      31 |     // Verify session cookie is set (auto-login)
+      32 |     const sessionCookie = await getSessionCookie(page);
+    > 33 |     expect(sessionCookie).toBeDefined();
+         |                           ^
+      34 |     expect(sessionCookie?.value).toBeTruthy();
+      35 |   });
+      36 |
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\signup.spec.ts:33:27
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\signup-Signup-Flow-successful-signup-with-valid-data-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\signup-Signup-Flow-successful-signup-with-valid-data-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\signup-Signup-Flow-successful-signup-with-valid-data-chromium\error-context.md
+
+
+[1A[2K  10) [chromium] › tests\e2e\password-reset.spec.ts:65:7 › Password Reset Flow › reset password page shows invalid link for missing token 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('heading', { name: /invalid.*link/i })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByRole('heading', { name: /invalid.*link/i })[22m
+
+
+      71 |
+      72 |     // Should show "Invalid Link" heading
+    > 73 |     await expect(page.getByRole('heading', { name: /invalid.*link/i })).toBeVisible({
+         |                                                                         ^
+      74 |       timeout: 5000,
+      75 |     });
+      76 |
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\password-reset.spec.ts:73:73
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\password-reset-Password-Re-da486-alid-link-for-missing-token-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\password-reset-Password-Re-da486-alid-link-for-missing-token-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\password-reset-Password-Re-da486-alid-link-for-missing-token-chromium\error-context.md
+
+
+[1A[2K[31/38] [chromium] › tests\e2e\signup.spec.ts:150:7 › Signup Flow › company field is optional
+[1A[2K[32/38] [chromium] › tests\e2e\signup.spec.ts:119:7 › Signup Flow › validation shows error for unchecked terms
+[1A[2K[33/38] [chromium] › tests\e2e\signup.spec.ts:138:7 › Signup Flow › password strength indicator works
+[1A[2K[34/38] [chromium] › tests\e2e\sso-cookie.spec.ts:11:7 › SSO Cookie Behavior › cookie is set after successful login
+[1A[2K  11) [chromium] › tests\e2e\signup.spec.ts:119:7 › Signup Flow › validation shows error for unchecked terms 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByRole('alert')
+    Expected pattern: [32m/must agree.*terms/i[39m
+    Error: strict mode violation: getByRole('alert') resolved to 2 elements:
+        1) <p role="alert" class="text-sm text-red-600">Invalid input: expected boolean, received string</p> aka getByText('Invalid input: expected')
+        2) <div role="alert" aria-live="assertive" id="__next-route-announcer__"></div> aka locator('[id="__next-route-announcer__"]')
+
+    Call log:
+    [2m  - Expect "toContainText" with timeout 3000ms[22m
+    [2m  - waiting for getByRole('alert')[22m
+
+
+      131 |
+      132 |     // Should show validation error - "You must agree to the terms and conditions"
+    > 133 |     await expect(page.getByRole('alert')).toContainText(/must agree.*terms/i, {
+          |                                           ^
+      134 |       timeout: 3000,
+      135 |     });
+      136 |   });
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\signup.spec.ts:133:43
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\signup-Signup-Flow-validat-c97c6-s-error-for-unchecked-terms-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\signup-Signup-Flow-validat-c97c6-s-error-for-unchecked-terms-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\signup-Signup-Flow-validat-c97c6-s-error-for-unchecked-terms-chromium\error-context.md
+
+
+[1A[2K  12) [chromium] › tests\e2e\profile.spec.ts:52:7 › Profile Page › profile page has logout functionality 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-testid="logout-button"]')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for locator('[data-testid="logout-button"]')[22m
+
+
+      61 |     // Look for logout button with data-testid
+      62 |     const logoutButton = page.locator('[data-testid="logout-button"]');
+    > 63 |     await expect(logoutButton).toBeVisible({ timeout: 5000 });
+         |                                ^
+      64 |
+      65 |     // Click logout button
+      66 |     await logoutButton.click();
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\profile.spec.ts:63:32
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\profile-Profile-Page-profile-page-has-logout-functionality-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\profile-Profile-Page-profile-page-has-logout-functionality-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\profile-Profile-Page-profile-page-has-logout-functionality-chromium\error-context.md
+
+
+[1A[2K  13) [chromium] › tests\e2e\signup.spec.ts:37:7 › Signup Flow › shows error for duplicate email ───
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('text=/already exists/i')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for locator('text=/already exists/i')[22m
+    [2m    - waiting for" http://localhost:3000/terms" navigation to finish...[22m
+    [2m    - navigated to "http://localhost:3000/terms"[22m
+
+
+      54 |
+      55 |     // Should show error toast about existing email - wait for toast
+    > 56 |     await expect(page.locator('text=/already exists/i')).toBeVisible({
+         |                                                          ^
+      57 |       timeout: 5000,
+      58 |     });
+      59 |   });
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\signup.spec.ts:56:58
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\signup-Signup-Flow-shows-error-for-duplicate-email-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\signup-Signup-Flow-shows-error-for-duplicate-email-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\signup-Signup-Flow-shows-error-for-duplicate-email-chromium\error-context.md
+
+
+[1A[2K[35/38] [chromium] › tests\e2e\sso-cookie.spec.ts:96:7 › SSO Cookie Behavior › cookie has expiration set
+[1A[2K[36/38] [chromium] › tests\e2e\sso-cookie.spec.ts:23:7 › SSO Cookie Behavior › cookie has correct security flags
+[1A[2K[37/38] [chromium] › tests\e2e\sso-cookie.spec.ts:47:7 › SSO Cookie Behavior › cookie persists after navigation
+[1A[2K[38/38] [chromium] › tests\e2e\sso-cookie.spec.ts:66:7 › SSO Cookie Behavior › cookie is cleared after logout
+[1A[2K  14) [chromium] › tests\e2e\profile.spec.ts:24:7 › Profile Page › profile page shows user information 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('heading', { name: 'Profile Information' })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for getByRole('heading', { name: 'Profile Information' })[22m
+
+
+      32 |
+      33 |     // Verify profile page heading is visible
+    > 34 |     await expect(page.getByRole('heading', { name: 'Profile Information' })).toBeVisible({
+         |                                                                              ^
+      35 |       timeout: 5000,
+      36 |     });
+      37 |
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\profile.spec.ts:34:78
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\profile-Profile-Page-profile-page-shows-user-information-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\profile-Profile-Page-profile-page-shows-user-information-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\profile-Profile-Page-profile-page-shows-user-information-chromium\error-context.md
+
+
+[1A[2K  15) [chromium] › tests\e2e\avatar-upload.spec.ts:14:7 › Avatar Upload › complete avatar upload and display flow 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByText(/uploaded successfully/i)
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for getByText(/uploaded successfully/i)[22m
+
+
+      38 |
+      39 |     // Wait for upload to complete and preview to update
+    > 40 |     await expect(page.getByText(/uploaded successfully/i)).toBeVisible({ timeout: 10000 });
+         |                                                            ^
+      41 |
+      42 |     // Verify avatar preview appears in settings
+      43 |     await expect(avatarPreview).toBeVisible();
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\avatar-upload.spec.ts:40:60
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\avatar-upload-Avatar-Uploa-8fbb1-tar-upload-and-display-flow-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\avatar-upload-Avatar-Uploa-8fbb1-tar-upload-and-display-flow-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\avatar-upload-Avatar-Uploa-8fbb1-tar-upload-and-display-flow-chromium\error-context.md
+
+
+[1A[2K  16) [chromium] › tests\e2e\signup.spec.ts:100:7 › Signup Flow › validation shows error for empty full name 
+
+    TimeoutError: page.click: Timeout 10000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('button[type="submit"]')[22m
+    [2m    - locator resolved to <button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 w-full">Create Account</button>[22m
+    [2m  - attempting click action[22m
+    [2m    - waiting for element to be visible, enabled and stable[22m
+    [2m    - element is visible, enabled and stable[22m
+    [2m    - scrolling into view if needed[22m
+    [2m    - done scrolling[22m
+    [2m    - waiting for" http://localhost:3000/terms" navigation to finish...[22m
+    [2m    - navigated to "http://localhost:3000/terms"[22m
+
+
+      109 |
+      110 |     // Submit without full name
+    > 111 |     await page.click('button[type="submit"]');
+          |                ^
+      112 |
+      113 |     // Should show validation error - "Full name must be at least 2 characters"
+      114 |     await expect(page.getByRole('alert')).toContainText(/full name.*at least 2/i, {
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\signup.spec.ts:111:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\signup-Signup-Flow-validat-d2a4e-s-error-for-empty-full-name-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\signup-Signup-Flow-validat-d2a4e-s-error-for-empty-full-name-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\signup-Signup-Flow-validat-d2a4e-s-error-for-empty-full-name-chromium\error-context.md
+
+
+[1A[2K  17) [chromium] › tests\e2e\sso-cookie.spec.ts:66:7 › SSO Cookie Behavior › cookie is cleared after logout 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('[data-testid="logout-button"]')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 5000ms[22m
+    [2m  - waiting for locator('[data-testid="logout-button"]')[22m
+
+
+      79 |     // Click logout button
+      80 |     const logoutButton = page.locator('[data-testid="logout-button"]');
+    > 81 |     await expect(logoutButton).toBeVisible({ timeout: 5000 });
+         |                                ^
+      82 |     await logoutButton.click();
+      83 |
+      84 |     // Wait for redirect to login
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\sso-cookie.spec.ts:81:32
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\sso-cookie-SSO-Cookie-Beha-e8e56-kie-is-cleared-after-logout-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\sso-cookie-SSO-Cookie-Beha-e8e56-kie-is-cleared-after-logout-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\sso-cookie-SSO-Cookie-Beha-e8e56-kie-is-cleared-after-logout-chromium\error-context.md
+
+
+[1A[2K  18) [chromium] › tests\e2e\signup.spec.ts:150:7 › Signup Flow › company field is optional ────────
+
+    TimeoutError: page.click: Timeout 10000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('button[type="submit"]')[22m
+    [2m    - locator resolved to <button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 w-full">Create Account</button>[22m
+    [2m  - attempting click action[22m
+    [2m    - waiting for element to be visible, enabled and stable[22m
+    [2m    - element is visible, enabled and stable[22m
+    [2m    - scrolling into view if needed[22m
+
+
+      161 |
+      162 |     // Submit without company
+    > 163 |     await page.click('button[type="submit"]');
+          |                ^
+      164 |
+      165 |     // Should still succeed
+      166 |     await page.waitForURL((url) => url.pathname !== '/signup', { timeout: 10000 });
+        at C:\Users\facke\OneDrive\Documents\GitHub\OnPageApp\accounts.bfeai\tests\e2e\signup.spec.ts:163:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\signup-Signup-Flow-company-field-is-optional-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results\signup-Signup-Flow-company-field-is-optional-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\signup-Signup-Flow-company-field-is-optional-chromium\error-context.md
+
+
+[1A[2K  18 failed
+    [chromium] › tests\e2e\auth.spec.ts:99:7 › Authentication Flow › validation shows error for empty email 
+    [chromium] › tests\e2e\auth.spec.ts:112:7 › Authentication Flow › validation shows error for empty password 
+    [chromium] › tests\e2e\auth.spec.ts:125:7 › Authentication Flow › validation shows error for invalid email format 
+    [chromium] › tests\e2e\avatar-upload.spec.ts:14:7 › Avatar Upload › complete avatar upload and display flow 
+    [chromium] › tests\e2e\password-reset.spec.ts:21:7 › Password Reset Flow › forgot password shows success message 
+    [chromium] › tests\e2e\password-reset.spec.ts:38:7 › Password Reset Flow › forgot password validates email format 
+    [chromium] › tests\e2e\password-reset.spec.ts:53:7 › Password Reset Flow › forgot password requires email 
+    [chromium] › tests\e2e\password-reset.spec.ts:65:7 › Password Reset Flow › reset password page shows invalid link for missing token 
+    [chromium] › tests\e2e\password-reset.spec.ts:101:7 › Password Reset Flow › reset password validates password confirmation 
+    [chromium] › tests\e2e\profile.spec.ts:24:7 › Profile Page › profile page shows user information 
+    [chromium] › tests\e2e\profile.spec.ts:52:7 › Profile Page › profile page has logout functionality 
+    [chromium] › tests\e2e\signup.spec.ts:11:7 › Signup Flow › successful signup with valid data ───
+    [chromium] › tests\e2e\signup.spec.ts:37:7 › Signup Flow › shows error for duplicate email ─────
+    [chromium] › tests\e2e\signup.spec.ts:61:7 › Signup Flow › validation shows error for password mismatch 
+    [chromium] › tests\e2e\signup.spec.ts:100:7 › Signup Flow › validation shows error for empty full name 
+    [chromium] › tests\e2e\signup.spec.ts:119:7 › Signup Flow › validation shows error for unchecked terms 
+    [chromium] › tests\e2e\signup.spec.ts:150:7 › Signup Flow › company field is optional ──────────
+    [chromium] › tests\e2e\sso-cookie.spec.ts:66:7 › SSO Cookie Behavior › cookie is cleared after logout 
+  20 passed (28.3s)

@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(claude mcp add:*)",
+      "Bash(gh repo view:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npx get-shit-done-cc --claude --local)",
+      "Bash(dir /s /b /ad \"C:\\\\Users\\\\facke\\\\Documents\\\\Github\\\\BFEAI\\\\Apps\\\\accounts.bfeai\")",
+      "Bash(dir /s /b /ad \"C:\\\\Users\\\\facke\\\\Documents\\\\Github\\\\BFEAI\\\\Apps\\\\admin.bfeai\")",
+      "Bash(dir /s /b /ad \"C:\\\\Users\\\\facke\\\\Documents\\\\Github\\\\BFEAI\\\\Apps\\\\keywords.bfeai\")",
+      "Bash(dir /s /b /ad \"C:\\\\Users\\\\facke\\\\Documents\\\\Github\\\\BFEAI\\\\Apps\\\\payments.bfeai\")",
+      "Bash(dir:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_click",
+      "Bash(npm run build:*)",
+      "Bash(SKIP_ENV_VALIDATION=true npm run build:*)",
+      "Bash(npx eslint:*)",
+      "Bash(wc:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run lint)",
+      "Bash(node:*)",
+      "mcp__supabase__execute_sql",
+      "WebFetch(domain:dataforseo.com)",
+      "mcp__supabase__get_logs",
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run test:run:*)",
+      "Bash(copy:*)",
+      "Bash(npm run lint:*)",
+      "WebFetch(domain:docs.dataforseo.com)",
+      "mcp__supabase__apply_migration",
+      "WebFetch(domain:www.valueserp.com)",
+      "WebFetch(domain:trajectdata.com)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
+}
