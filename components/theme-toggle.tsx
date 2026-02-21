@@ -96,7 +96,7 @@ export function ThemeToggle({
       return (
         <div
           className={cn(
-            "flex items-center justify-center rounded-full border border-border bg-muted",
+            "flex items-center justify-center rounded-full bg-muted",
             sizes.button,
             className
           )}
@@ -146,7 +146,7 @@ export function ThemeToggle({
         title={`${label} - Click to cycle`}
         onClick={cycleTheme}
         className={cn(
-          "flex items-center justify-center rounded-full border bg-muted transition-colors",
+          "flex items-center justify-center rounded-full bg-muted transition-colors",
           "hover:bg-background hover:text-foreground",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
           sizes.button,
