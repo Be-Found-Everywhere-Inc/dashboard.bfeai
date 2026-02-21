@@ -191,27 +191,14 @@ export function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {/* Explore Apps — styled CTA when expanded, regular when collapsed */}
+              {/* Explore Apps */}
               <SidebarMenuItem>
-                {isCollapsed ? (
-                  <SidebarMenuButton asChild tooltip="Explore Apps">
-                    <a href={exploreHref}>
-                      <Sparkles />
-                      <span>Explore Apps</span>
-                    </a>
-                  </SidebarMenuButton>
-                ) : (
-                  <SidebarMenuButton
-                    asChild
-                    tooltip="Explore Apps"
-                    className="bg-brand-indigo text-white shadow-lg shadow-brand-indigo/40 hover:bg-brand-indigo/90 hover:text-white"
-                  >
-                    <a href={exploreHref}>
-                      <Sparkles />
-                      <span>Explore Apps</span>
-                    </a>
-                  </SidebarMenuButton>
-                )}
+                <SidebarMenuButton asChild tooltip="Explore Apps">
+                  <a href={exploreHref}>
+                    <Sparkles />
+                    <span>Explore Apps</span>
+                  </a>
+                </SidebarMenuButton>
               </SidebarMenuItem>
 
               {/* Keyword Agent */}

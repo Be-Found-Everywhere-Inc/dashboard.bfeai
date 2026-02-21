@@ -180,16 +180,14 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
   return (
     <SidebarProvider defaultOpen={true} style={{ '--sidebar-width-icon': '4rem' } as React.CSSProperties}>
-      <div className="flex min-h-screen w-full bg-background">
-        <DashboardContent
-          user={user}
-          loading={loading}
-          isLoggingOut={isLoggingOut}
-          handleSignOut={handleSignOut}
-        >
-          {children}
-        </DashboardContent>
-      </div>
+      <DashboardContent
+        user={user}
+        loading={loading}
+        isLoggingOut={isLoggingOut}
+        handleSignOut={handleSignOut}
+      >
+        {children}
+      </DashboardContent>
     </SidebarProvider>
   );
 }
