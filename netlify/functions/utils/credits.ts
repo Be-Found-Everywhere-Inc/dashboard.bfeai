@@ -1,6 +1,6 @@
 import { HttpError } from "./http";
 import { supabaseAdmin } from "./supabase-admin";
-import { findSubscriptionByPriceId, findSubscriptionPlan } from "../../../src/config/plans";
+import { findSubscriptionByPriceId, findSubscriptionPlan } from "../../../config/plans";
 
 // ---------------------------------------------------------------------------
 // Types

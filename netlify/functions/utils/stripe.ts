@@ -1,8 +1,8 @@
 import Stripe from "stripe";
 import { HttpError } from "./http";
 import { supabaseAdmin } from "./supabase-admin";
-import { findSubscriptionByPriceId, findSubscriptionPlan, BUNDLE_DISCOUNT_COUPON_ID } from "../../../src/config/plans";
-import { getStripeEnv } from "../../../src/lib/stripe-env";
+import { findSubscriptionByPriceId, findSubscriptionPlan, BUNDLE_DISCOUNT_COUPON_ID } from "../../../config/plans";
+import { getStripeEnv } from "../../../lib/stripe-env";
 
 const stripeSecretKey = getStripeEnv("STRIPE_SECRET_KEY");
 

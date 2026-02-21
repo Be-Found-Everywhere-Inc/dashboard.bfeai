@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCredits as useCreditsQuery } from './useCredits';
 
 interface CreditBalance {
   subscriptionBalance: number;
@@ -9,23 +9,17 @@ interface CreditBalance {
   cap: number;
 }
 
-export function useCredits() {
-  const [credits, setCredits] = useState<CreditBalance | null>(null);
-
-  useEffect(() => {
-    async function fetchCredits() {
-      try {
-        const response = await fetch('/api/credits', { credentials: 'include' });
-        if (response.ok) {
-          const json = await response.json();
-          setCredits(json.data);
-        }
-      } catch {
-        // Silently fail — credits are non-critical sidebar info
-      }
-    }
-    fetchCredits();
-  }, []);
-
-  return credits;
+/**
+ * Compatibility shim: returns CreditBalance | null matching the old API
+ * so existing DashboardShell code continues to work.
+ */
+export function useCredits(): CreditBalance | null {
+  const { balance } = useCreditsQuery();
+  if (!balance) return null;
+  return {
+    subscriptionBalance: balance.subscriptionBalance,
+    topupBalance: balance.topupBalance,
+    total: balance.total,
+    cap: balance.cap,
+  };
 }

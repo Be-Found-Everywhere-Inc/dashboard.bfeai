@@ -1,7 +1,7 @@
 import { withErrorHandling, jsonResponse, HttpError } from "./utils/http";
 import { requireAuth } from "./utils/supabase-admin";
 import { getOrCreateStripeCustomer, createTopUpCheckoutSession } from "./utils/stripe";
-import { getStripeEnv } from "../../src/lib/stripe-env";
+import { getStripeEnv } from "../../lib/stripe-env";
 
 type TopUpPack = {
   priceId: string;

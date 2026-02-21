@@ -1,97 +1,86 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Define protected routes that require authentication
-const protectedRoutes = [
-  '/profile',
-  '/settings',
-  '/api/profile',
-];
-
-// Define public routes that don't require authentication
-const publicRoutes = [
-  '/',
+const PUBLIC_PATHS = [
   '/login',
   '/signup',
   '/forgot-password',
   '/reset-password',
-  '/api/auth/login',
-  '/api/auth/signup',
-  '/api/auth/logout',
-  '/api/auth/forgot-password',
-  '/api/auth/reset-password',
-  '/auth/confirm',
-  '/api/auth/callback',
+  '/logout',
+  '/oauth-start',
+  '/sso-complete',
+  '/sso-exchange',
+  '/sso-landing',
   '/terms',
   '/privacy',
 ];
 
-function isProtectedRoute(pathname: string): boolean {
-  return protectedRoutes.some(route => pathname.startsWith(route));
+const PUBLIC_API_PREFIXES = [
+  '/api/auth/',
+  '/api/health',
+  '/api/csrf',
+  '/api/bugs',
+];
+
+const STATIC_PREFIXES = [
+  '/_next',
+  '/favicon',
+  '/brand',
+  '/public',
+];
+
+function isPublicPath(pathname: string): boolean {
+  if (STATIC_PREFIXES.some(p => pathname.startsWith(p))) return true;
+  if (pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|woff|woff2|ttf|eot|css|js)$/)) return true;
+  if (PUBLIC_API_PREFIXES.some(p => pathname.startsWith(p))) return true;
+  if (PUBLIC_PATHS.includes(pathname)) return true;
+  return false;
 }
 
-function isPublicRoute(pathname: string): boolean {
-  // Check exact matches and also allow Next.js static files
-  if (publicRoutes.includes(pathname)) {
-    return true;
-  }
+function isAuthPage(pathname: string): boolean {
+  return ['/login', '/signup'].includes(pathname);
+}
 
-  // Allow Next.js internals and static assets
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon') ||
-    pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|woff|woff2|ttf|eot|css|js)$/)
-  ) {
-    return true;
-  }
+function hasValidToken(request: NextRequest): boolean {
+  const token = request.cookies.get('bfeai_session')?.value;
+  if (!token) return false;
 
-  return false;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    // Portable base64 decode for Edge runtime
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (!payload.exp || payload.exp * 1000 < Date.now()) return false;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const sessionCookie = request.cookies.get('bfeai_session');
 
-  // If user is logged in and visits login/signup/root, redirect to profile
-  // This provides a better UX for already-authenticated users
-  if (sessionCookie?.value && (pathname === '/' || pathname === '/login' || pathname === '/signup')) {
-    return NextResponse.redirect(new URL('/profile', request.url));
-  }
-
-  // Allow public routes
-  if (isPublicRoute(pathname)) {
+  // Allow public paths
+  if (isPublicPath(pathname)) {
+    // Redirect authenticated users away from login/signup to dashboard
+    if (isAuthPage(pathname) && hasValidToken(request)) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
     return NextResponse.next();
   }
 
-  // Check if route requires protection
-  if (!isProtectedRoute(pathname)) {
-    // Route is neither protected nor explicitly public - allow by default
-    return NextResponse.next();
-  }
-
-  // Protected route - check for session cookie (already fetched above)
-  if (!sessionCookie?.value) {
-    // No session cookie - redirect to login
+  // Protected paths — require valid auth
+  if (!hasValidToken(request)) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Cookie exists - allow access
-  // Full JWT verification will be done in pages/API routes as needed
-  // This keeps middleware Edge Runtime compatible
   return NextResponse.next();
 }
 
-// Configure which routes the middleware should run on
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };

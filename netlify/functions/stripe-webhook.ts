@@ -20,7 +20,7 @@ import {
   mergeTrialCredits,
   recalculateSubscriptionCap,
 } from "./utils/credits";
-import { getMonthlyCreditsForSubscription, getTrialCreditsForApp, findSubscriptionByPriceId, findSubscriptionPlan } from "../../src/config/plans";
+import { getMonthlyCreditsForSubscription, getTrialCreditsForApp, findSubscriptionByPriceId, findSubscriptionPlan } from "../../config/plans";
 import { sendTrialReminderEmail } from "./utils/email";
 import type Stripe from "stripe";
 

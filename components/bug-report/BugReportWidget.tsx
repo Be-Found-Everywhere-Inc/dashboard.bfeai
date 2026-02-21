@@ -6,7 +6,7 @@ import { useConsoleCapture } from './useConsoleCapture';
 import { renderConsoleImage } from './renderConsoleImage';
 
 interface BugReportWidgetProps {
-  appSource: 'accounts' | 'keywords' | 'payments';
+  appSource: 'accounts' | 'keywords' | 'payments' | 'dashboard';
 }
 
 const API_URL = '/api/bugs';

@@ -1,8 +1,8 @@
 import { withErrorHandling, jsonResponse, HttpError } from "./utils/http";
 import { requireAuth } from "./utils/supabase-admin";
 import { getOrCreateStripeCustomer, createCheckoutSession, createTrialCheckoutSession, checkTrialEligibility } from "./utils/stripe";
-import { findSubscriptionPlan } from "../../src/config/plans";
-import { getStripeEnv } from "../../src/lib/stripe-env";
+import { findSubscriptionPlan } from "../../config/plans";
+import { getStripeEnv } from "../../lib/stripe-env";
 
 const SUCCESS_URL = process.env.NEXT_PUBLIC_PAYMENTS_URL
   ? `${process.env.NEXT_PUBLIC_PAYMENTS_URL}/?checkout=success`

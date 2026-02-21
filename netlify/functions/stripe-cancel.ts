@@ -9,7 +9,7 @@ import {
   syncAppSubscription,
 } from "./utils/stripe";
 import { allocateRetentionBonus } from "./utils/credits";
-import { getStripeEnv } from "../../src/lib/stripe-env";
+import { getStripeEnv } from "../../lib/stripe-env";
 
 type RequestBody = {
   reason: string;

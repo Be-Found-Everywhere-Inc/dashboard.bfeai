@@ -13,6 +13,7 @@ import {
   Menu,
   ChevronLeft,
   Coins,
+  LayoutDashboard,
 } from 'lucide-react';
 
 import {
@@ -39,7 +40,11 @@ import { BugReportWidget } from '@/components/bug-report/BugReportWidget';
 import { useCredits } from '@/hooks/use-credits';
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/profile', icon: User },
+  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { label: 'Profile', href: '/profile', icon: User },
+  { label: 'Billing & Invoices', href: '/billing', icon: CreditCard },
+  { label: 'Credits', href: '/credits', icon: Coins },
+  { label: 'Explore Apps', href: '/apps', icon: Sparkles },
   { label: 'Settings', href: '/settings', icon: Settings },
 ];
 
@@ -59,11 +64,6 @@ const APP_LINKS = [
 ];
 
 const BOTTOM_LINKS = [
-  {
-    label: 'Manage Payments',
-    href: 'https://payments.bfeai.com',
-    icon: CreditCard,
-  },
   {
     label: 'Support',
     href: 'mailto:support@bfeai.com',
@@ -154,12 +154,12 @@ function DashboardContent({
             </div>
             <div className={cn('transition-opacity', isCollapsed && 'hidden')}>
               <span className="text-lg font-semibold text-foreground group-hover:text-brand-indigo transition-colors">
-                Accounts
+                Dashboard
               </span>
             </div>
           </a>
           <p className={cn('mt-2 text-xs text-muted-foreground line-clamp-2', isCollapsed && 'hidden')}>
-            Manage your account and connected apps.
+            Manage your account, billing, and apps.
           </p>
         </SidebarHeader>
 
@@ -173,8 +173,9 @@ function DashboardContent({
               <SidebarMenu>
                 {NAV_ITEMS.map((item) => {
                   const isActive =
-                    pathname === item.href ||
-                    pathname.startsWith(`${item.href}/`);
+                    item.href === '/'
+                      ? pathname === '/'
+                      : pathname === item.href || pathname.startsWith(`${item.href}/`);
                   const Icon = item.icon;
                   return (
                     <SidebarMenuItem key={item.href}>
@@ -256,7 +257,7 @@ function DashboardContent({
           {/* Credit Balance */}
           {credits && (
             <a
-              href="https://payments.bfeai.com/credits"
+              href="/credits"
               title={isCollapsed ? `${credits.total} credits` : undefined}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition hover:bg-accent/50',
@@ -342,7 +343,7 @@ function DashboardContent({
             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">
-                  Manage your account, profile, and connected apps.
+                  Manage your account, billing, and connected apps.
                 </p>
                 <h1 className="text-2xl font-bold text-foreground md:text-3xl lg:text-4xl">
                   Welcome back, {firstName}.
@@ -351,9 +352,7 @@ function DashboardContent({
               <div className="flex flex-wrap gap-3">
                 <Button
                   className="h-11 gap-2 rounded-lg bg-brand-indigo text-white shadow-lg shadow-brand-indigo/40 hover:bg-brand-indigo/90"
-                  onClick={() =>
-                    (window.location.href = 'https://payments.bfeai.com/apps')
-                  }
+                  onClick={() => router.push('/apps')}
                 >
                   <Sparkles className="h-4 w-4" />
                   Explore apps
@@ -367,7 +366,7 @@ function DashboardContent({
             </div>
           </div>
         </main>
-        <BugReportWidget appSource="accounts" />
+        <BugReportWidget appSource="dashboard" />
       </SidebarInset>
     </>
   );
