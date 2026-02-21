@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Sparkles, Menu } from 'lucide-react';
 
 import {
@@ -40,6 +40,7 @@ function DashboardContent({
   handleSignOut: () => void;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const credits = useCredits();
 
   const firstName =
@@ -58,6 +59,7 @@ function DashboardContent({
       {/* Sidebar */}
       <AppSidebar
         currentApp="dashboard"
+        pathname={pathname}
         user={user}
         credits={credits ? { total: credits.total } : null}
         onLogout={handleSignOut}

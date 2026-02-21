@@ -47,6 +47,8 @@ export interface AppSidebarCredits {
 
 export interface AppSidebarProps {
   currentApp: "dashboard" | "keywords" | "labs";
+  /** Current pathname within the app (e.g. "/apps", "/credits"). Used for active-state highlighting on dashboard sub-pages. */
+  pathname?: string;
   user: AppSidebarUser | null;
   credits: AppSidebarCredits | null;
   onLogout: () => void;
@@ -119,6 +121,7 @@ function CollapseToggle() {
 
 export function AppSidebar({
   currentApp,
+  pathname,
   user,
   credits,
   onLogout,
@@ -142,6 +145,12 @@ export function AppSidebar({
   const creditsHref = resolveHref(currentApp, "dashboard", dashboardUrl, "/credits");
   const billingHref = resolveHref(currentApp, "dashboard", dashboardUrl, "/billing");
   const settingsHref = resolveHref(currentApp, "dashboard", dashboardUrl, "/settings");
+
+  // Active-state detection for dashboard sub-pages
+  const isDashboardHome = currentApp === "dashboard" && (!pathname || pathname === "/");
+  const isExploreApps = currentApp === "dashboard" && pathname === "/apps";
+  const isKeywords = currentApp === "keywords";
+  const isLabs = currentApp === "labs";
 
   // Active-state style overrides
   const activeClass = "bg-brand-indigo text-white hover:bg-brand-indigo/90 hover:text-white";
@@ -180,9 +189,9 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={currentApp === "dashboard"}
+                  isActive={isDashboardHome}
                   tooltip="Dashboard"
-                  className={currentApp === "dashboard" ? activeClass : undefined}
+                  className={isDashboardHome ? activeClass : undefined}
                 >
                   <a href={dashHref}>
                     <LayoutDashboard />
@@ -193,7 +202,12 @@ export function AppSidebar({
 
               {/* Explore Apps */}
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Explore Apps">
+                <SidebarMenuButton
+                  asChild
+                  isActive={isExploreApps}
+                  tooltip="Explore Apps"
+                  className={isExploreApps ? activeClass : undefined}
+                >
                   <a href={exploreHref}>
                     <Sparkles />
                     <span>Explore Apps</span>
@@ -205,9 +219,9 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={currentApp === "keywords"}
+                  isActive={isKeywords}
                   tooltip="Keyword Agent"
-                  className={currentApp === "keywords" ? activeClass : undefined}
+                  className={isKeywords ? activeClass : undefined}
                 >
                   <a href={kwHref}>
                     <Search />
@@ -220,9 +234,9 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  isActive={currentApp === "labs"}
+                  isActive={isLabs}
                   tooltip="LABS"
-                  className={currentApp === "labs" ? activeClass : undefined}
+                  className={isLabs ? activeClass : undefined}
                 >
                   <a href={labsHref}>
                     <FlaskConical />

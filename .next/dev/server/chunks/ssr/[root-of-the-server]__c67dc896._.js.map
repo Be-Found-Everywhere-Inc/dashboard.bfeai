@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/facke/Documents/BFEAI/Apps/accounts.bfeai/app/page.tsx"],"sourcesContent":["import { redirect } from \"next/navigation\";\r\n\r\nexport default function Home() {\r\n  // Root path redirects to profile (which handles auth check)\r\n  // If user is not authenticated, they'll be redirected to login from there\r\n  redirect(\"/profile\");\r\n}\r\n"],"names":[],"mappings":";;;;AAAA;AAAA;;AAEe,SAAS;IACtB,4DAA4D;IAC5D,0EAA0E;IAC1E,IAAA,iMAAQ,EAAC;AACX"}}]
-}
