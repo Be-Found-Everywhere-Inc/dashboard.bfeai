@@ -7,10 +7,13 @@ import type { JWTPayload } from "./types";
 const COOKIE_NAME = "bfeai_session";
 const COOKIE_DOMAIN = ".bfeai.com";
 
-const ACCOUNTS_URL =
-  process.env.NEXT_PUBLIC_ACCOUNTS_URL || "https://accounts.bfeai.com";
-const PAYMENTS_URL =
-  process.env.NEXT_PUBLIC_PAYMENTS_URL || "https://payments.bfeai.com";
+const DASHBOARD_URL =
+  process.env.NEXT_PUBLIC_DASHBOARD_URL ||
+  process.env.NEXT_PUBLIC_ACCOUNTS_URL ||
+  "https://dashboard.bfeai.com";
+// Backwards compat aliases
+const ACCOUNTS_URL = DASHBOARD_URL;
+const PAYMENTS_URL = DASHBOARD_URL;
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "unknown";
 
 /**
@@ -97,10 +100,17 @@ export function getAppName(): string {
 }
 
 /**
- * Get the accounts URL
+ * Get the dashboard URL (central hub for auth + billing)
+ */
+export function getDashboardUrl(): string {
+  return DASHBOARD_URL;
+}
+
+/**
+ * Get the accounts URL (backwards compat — returns dashboard URL)
  */
 export function getAccountsUrl(): string {
-  return ACCOUNTS_URL;
+  return DASHBOARD_URL;
 }
 
 /**
