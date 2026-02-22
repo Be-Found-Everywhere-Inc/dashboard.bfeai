@@ -3,6 +3,8 @@ import { requireAuth } from "./utils/supabase-admin";
 import {
   getOrCreateStripeCustomer,
   createCheckoutSession,
+  createTrialCheckoutSession,
+  checkTrialEligibility,
   createDualTrialCheckoutSession,
   checkDualTrialEligibility,
 } from "./utils/stripe";
@@ -52,8 +54,8 @@ export const handler = withErrorHandling(async (event) => {
 
   const customerId = await getOrCreateStripeCustomer(user.id, email);
 
-  // Dual trial flow (also handles legacy `trial` param for backward compat)
-  if (dualTrial || trial) {
+  // Dual trial flow ($2 bundle: Keywords + LABS)
+  if (dualTrial) {
     const eligibility = await checkDualTrialEligibility(user.id, customerId);
     if (!eligibility.eligible) {
       throw new HttpError(409, `Not eligible for trial: ${eligibility.reason}`);
@@ -65,6 +67,31 @@ export const handler = withErrorHandling(async (event) => {
       successUrl: TRIAL_SUCCESS_URL,
       cancelUrl: CANCEL_URL,
     });
+
+    return jsonResponse(200, { url: session.url });
+  }
+
+  // Single-app trial flow ($1 setup fee + 7-day trial on one app)
+  if (trial) {
+    const plan = findSubscriptionPlan(appKey, tier);
+    const priceId = plan?.stripePriceIdMonthly || (appKey === "keywords" ? LEGACY_KEYWORDS_PRICE_ID : "");
+
+    if (!priceId) {
+      throw new HttpError(400, `No price configured for trial: ${appKey}${tier ? `:${tier}` : ""}`);
+    }
+
+    const eligibility = await checkTrialEligibility(user.id, appKey, customerId);
+    if (!eligibility.eligible) {
+      throw new HttpError(409, `Not eligible for trial: ${eligibility.reason}`);
+    }
+
+    const session = await createTrialCheckoutSession(
+      customerId,
+      priceId,
+      appKey,
+      TRIAL_SUCCESS_URL,
+      CANCEL_URL
+    );
 
     return jsonResponse(200, { url: session.url });
   }

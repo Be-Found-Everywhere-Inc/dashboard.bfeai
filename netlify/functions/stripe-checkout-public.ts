@@ -55,7 +55,7 @@ function corsHeaders(origin?: string): Record<string, string> {
 }
 
 // ---------------------------------------------------------------------------
-// Valid app keys for public trials
+// Valid app keys
 // ---------------------------------------------------------------------------
 
 const VALID_APP_KEYS = new Set(["keywords", "labs"]);
@@ -100,19 +100,25 @@ export const handler: Handler = async (event) => {
     }
 
     let appKey: string | undefined;
+    let tier: string | undefined;
+    let billingPeriod: "monthly" | "yearly" = "monthly";
     let email: string | undefined;
+    let trial = false;
     let dualTrial = false;
 
     try {
       const body = JSON.parse(event.body);
       appKey = body.appKey;
+      tier = body.tier;
+      if (body.billingPeriod === "yearly") billingPeriod = "yearly";
       email = body.email?.trim()?.toLowerCase();
+      if (body.trial === true) trial = true;
       if (body.dualTrial === true) dualTrial = true;
     } catch {
       return withCors(jsonResponse(400, { error: "Invalid JSON body" }), cors);
     }
 
-    // Dual trial doesn't require appKey; single-app trial does
+    // Dual trial doesn't require appKey; everything else does
     if (!dualTrial && (!appKey || !VALID_APP_KEYS.has(appKey))) {
       return withCors(jsonResponse(400, { error: `Invalid appKey. Must be one of: ${[...VALID_APP_KEYS].join(", ")}` }), cors);
     }
@@ -159,37 +165,72 @@ export const handler: Handler = async (event) => {
       return withCors(jsonResponse(200, { url: session.url }), cors);
     }
 
-    // Single-app trial flow (legacy)
-    const plan = findSubscriptionPlan(appKey!);
-    const recurringPriceId = plan?.stripePriceIdMonthly;
+    // Single-app trial flow ($1 setup + 7-day trial)
+    if (trial) {
+      const plan = findSubscriptionPlan(appKey!, tier);
+      const recurringPriceId = plan?.stripePriceIdMonthly;
 
-    if (!recurringPriceId) {
-      return withCors(jsonResponse(500, { error: `No price configured for ${appKey}` }), cors);
-    }
-
-    const successUrl = `${DASHBOARD_URL}/try/${appKey}?checkout=success`;
-    const cancelUrl = `${DASHBOARD_URL}/try/${appKey}?checkout=cancelled`;
-
-    // Check single-app trial eligibility if we have a known user
-    if (existingUserId && existingCustomerId) {
-      const eligibility = await checkTrialEligibility(existingUserId, appKey!, existingCustomerId);
-      if (!eligibility.eligible) {
-        return withCors(
-          jsonResponse(409, { error: `Not eligible for trial: ${eligibility.reason}` }),
-          cors
-        );
+      if (!recurringPriceId) {
+        return withCors(jsonResponse(500, { error: `No price configured for ${appKey}` }), cors);
       }
+
+      const successUrl = `${DASHBOARD_URL}/try/${appKey}?checkout=success`;
+      const cancelUrl = `${DASHBOARD_URL}/try/${appKey}?checkout=cancelled`;
+
+      // Check single-app trial eligibility if we have a known user
+      if (existingUserId && existingCustomerId) {
+        const eligibility = await checkTrialEligibility(existingUserId, appKey!, existingCustomerId);
+        if (!eligibility.eligible) {
+          return withCors(
+            jsonResponse(409, { error: `Not eligible for trial: ${eligibility.reason}` }),
+            cors
+          );
+        }
+      }
+
+      const session = await createPublicTrialCheckoutSession({
+        customerId: existingCustomerId,
+        customerEmail: existingCustomerId ? undefined : email,
+        recurringPriceId,
+        appKey: appKey!,
+        successUrl,
+        cancelUrl,
+      });
+
+      return withCors(jsonResponse(200, { url: session.url }), cors);
     }
 
-    // Create the checkout session
-    const session = await createPublicTrialCheckoutSession({
-      customerId: existingCustomerId,
-      customerEmail: existingCustomerId ? undefined : email,
-      recurringPriceId,
-      appKey: appKey!,
-      successUrl,
-      cancelUrl,
-    });
+    // Regular subscription checkout (no trial)
+    const plan = findSubscriptionPlan(appKey!, tier);
+    const priceId = plan
+      ? (billingPeriod === "yearly" ? plan.stripePriceIdYearly : plan.stripePriceIdMonthly)
+      : "";
+
+    if (!priceId) {
+      return withCors(jsonResponse(400, { error: `No price configured for ${appKey}${tier ? `:${tier}` : ""}` }), cors);
+    }
+
+    const successUrl = `${DASHBOARD_URL}/?checkout=success`;
+    const cancelUrl = `${DASHBOARD_URL}/?checkout=cancelled`;
+
+    const sessionParams: Record<string, unknown> = {
+      mode: "subscription" as const,
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: { type: "subscription", app_key: appKey, flow: "unauthenticated" },
+      subscription_data: { metadata: { app_key: appKey } },
+    };
+
+    if (existingCustomerId) {
+      sessionParams.customer = existingCustomerId;
+    } else if (email) {
+      sessionParams.customer_email = email;
+    }
+
+    const session = await stripe.checkout.sessions.create(
+      sessionParams as Parameters<typeof stripe.checkout.sessions.create>[0]
+    );
 
     return withCors(jsonResponse(200, { url: session.url }), cors);
   } catch (err) {
