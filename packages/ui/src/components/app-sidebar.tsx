@@ -143,7 +143,7 @@ export function AppSidebar({
   // Footer links always live on the dashboard app
   const profileHref = resolveHref(currentApp, "dashboard", dashboardUrl, "/profile");
   const creditsHref = resolveHref(currentApp, "dashboard", dashboardUrl, "/credits");
-  const billingHref = resolveHref(currentApp, "dashboard", dashboardUrl, "/billing");
+  const billingHref = resolveHref(currentApp, "dashboard", dashboardUrl, "/billing/portal");
   const settingsHref = resolveHref(currentApp, "dashboard", dashboardUrl, "/settings");
 
   // Active-state detection for dashboard sub-pages
@@ -151,6 +151,11 @@ export function AppSidebar({
   const isExploreApps = currentApp === "dashboard" && pathname === "/apps";
   const isKeywords = currentApp === "keywords";
   const isLabs = currentApp === "labs";
+
+  // Active-state detection for footer links (only on dashboard app)
+  const isProfile = currentApp === "dashboard" && pathname === "/profile";
+  const isCredits = currentApp === "dashboard" && pathname === "/credits";
+  const isSettings = currentApp === "dashboard" && (pathname === "/settings" || (!!pathname && pathname.startsWith("/settings/")));
 
   // Active-state style overrides (data-[active=true]: needed to beat sidebar.tsx CVA specificity)
   const activeClass = "bg-brand-indigo text-white hover:bg-brand-indigo/90 hover:text-white data-[active=true]:bg-brand-indigo data-[active=true]:text-white";
@@ -256,7 +261,7 @@ export function AppSidebar({
           {/* User profile */}
           {user && (
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip={user.fullName ?? user.email}>
+              <SidebarMenuButton asChild tooltip={user.fullName ?? user.email} isActive={isProfile} className={isProfile ? activeClass : undefined}>
                 <a href={profileHref} className="flex items-center gap-2">
                   {user.avatarUrl ? (
                     <img
@@ -283,7 +288,7 @@ export function AppSidebar({
           {/* Credits */}
           {credits !== null && (
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip={`${credits.total} credits`}>
+              <SidebarMenuButton asChild tooltip={`${credits.total} credits`} isActive={isCredits} className={isCredits ? activeClass : undefined}>
                 <a href={creditsHref}>
                   <Coins className="text-amber-500" />
                   <span className={cn(isCollapsed && "hidden")}>
@@ -307,7 +312,7 @@ export function AppSidebar({
 
           {/* Settings */}
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Settings">
+            <SidebarMenuButton asChild tooltip="Settings" isActive={isSettings} className={isSettings ? activeClass : undefined}>
               <a href={settingsHref}>
                 <Settings />
                 <span className={cn(isCollapsed && "hidden")}>Settings</span>
