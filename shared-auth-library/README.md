@@ -60,8 +60,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 JWT_SECRET=<must match all apps>
 
 # Required — service URLs
-NEXT_PUBLIC_ACCOUNTS_URL=https://accounts.bfeai.com
-NEXT_PUBLIC_PAYMENTS_URL=https://payments.bfeai.com
+NEXT_PUBLIC_DASHBOARD_URL=https://dashboard.bfeai.com
 NEXT_PUBLIC_APP_NAME=your-app-name
 
 # Required — Netlify builds
@@ -142,7 +141,6 @@ Browser                          Your App Server
 
 ## Complete Documentation
 
-- **SSO Integration Guide:** `docs/04-Architecture/BFEAI_Developer_Integration_Guide.md`
 - **Auth Flows (3 patterns):** `docs/04-Architecture/auth-flows.md`
 - **SSO Client Registration:** `docs/04-Architecture/sso-client-registration.md`
 - **App Registration (payments):** `docs/04-Architecture/app-registration-payments.md`

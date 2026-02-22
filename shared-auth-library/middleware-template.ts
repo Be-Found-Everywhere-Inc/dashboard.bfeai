@@ -19,8 +19,10 @@ const PUBLIC_PATHS = [
   "/favicon.ico", // Favicon
 ];
 
-const ACCOUNTS_URL =
-  process.env.NEXT_PUBLIC_ACCOUNTS_URL || "https://accounts.bfeai.com";
+const DASHBOARD_URL =
+  process.env.NEXT_PUBLIC_DASHBOARD_URL ||
+  process.env.NEXT_PUBLIC_DASHBOARD_URL ||
+  "https://dashboard.bfeai.com";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -44,7 +46,7 @@ export async function middleware(request: NextRequest) {
 
   // No token — redirect to login
   if (!token) {
-    const loginUrl = new URL("/login", ACCOUNTS_URL);
+    const loginUrl = new URL("/login", DASHBOARD_URL);
     loginUrl.searchParams.set("redirect", request.url);
     return NextResponse.redirect(loginUrl);
   }
@@ -61,7 +63,7 @@ export async function middleware(request: NextRequest) {
     );
 
     if (payload.exp * 1000 < Date.now()) {
-      const loginUrl = new URL("/login", ACCOUNTS_URL);
+      const loginUrl = new URL("/login", DASHBOARD_URL);
       loginUrl.searchParams.set("redirect", request.url);
       const response = NextResponse.redirect(loginUrl);
       response.cookies.delete("bfeai_session");
@@ -74,7 +76,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   } catch (error) {
     console.error("Token verification failed:", error);
-    const loginUrl = new URL("/login", ACCOUNTS_URL);
+    const loginUrl = new URL("/login", DASHBOARD_URL);
     loginUrl.searchParams.set("redirect", request.url);
     const response = NextResponse.redirect(loginUrl);
     response.cookies.delete("bfeai_session");
