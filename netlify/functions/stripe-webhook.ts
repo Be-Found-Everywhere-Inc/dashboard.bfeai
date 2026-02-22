@@ -9,6 +9,7 @@ import {
   applyBundleDiscountIfEligible,
   removeBundleDiscountIfIneligible,
   updateUserTier,
+  provisionDualTrialSubscriptions,
   stripe,
 } from "./utils/stripe";
 import { supabaseAdmin } from "./utils/supabase-admin";
@@ -134,7 +135,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const metadataType = session.metadata?.type;
 
-  if (metadataType === "topup") {
+  if (metadataType === "dual_trial") {
+    // Dual trial: $2 payment collected, now provision Keywords + LABS trial subscriptions
+    await provisionDualTrialSubscriptions(customerId, userId);
+    console.log(`[stripe-webhook] Provisioned dual trial subscriptions for user ${userId}`);
+  } else if (metadataType === "topup") {
     // One-time credit top-up purchase
     const credits = parseInt(session.metadata?.credits ?? "0", 10);
     const packName = session.metadata?.pack_name ?? "Top-up";
@@ -144,7 +149,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       console.log(`[stripe-webhook] Allocated ${credits} top-up credits for user ${userId}`);
     }
   } else if (metadataType === "trial") {
-    // Trial subscription checkout
+    // Legacy single-app trial checkout (kept for backward compat)
     const appKey = session.metadata?.app_key ?? "keywords";
     const trialCredits = getTrialCreditsForApp(appKey);
 
@@ -562,12 +567,20 @@ async function handleTrialWillEnd(subscription: Stripe.Subscription) {
     }
   }
 
-  // Determine app display name
+  // Determine app display name — dual trial subs show bundle branding
+  const isDualTrial = subscription.metadata?.source === "dual_trial";
   const appNames: Record<string, string> = {
     keywords: "BFEAI Keywords",
     labs: "BFEAI LABS",
   };
-  const appName = appNames[appKey] ?? `BFEAI ${appKey}`;
+  const appName = isDualTrial
+    ? "BFEAI Keywords + LABS Bundle"
+    : (appNames[appKey] ?? `BFEAI ${appKey}`);
+
+  // Override charge amount for dual trial to show post-discount bundle price
+  if (isDualTrial) {
+    chargeAmount = "$49/mo (bundle discount applied)";
+  }
 
   // Calculate charge date from trial_end
   const trialEnd = subscription.trial_end

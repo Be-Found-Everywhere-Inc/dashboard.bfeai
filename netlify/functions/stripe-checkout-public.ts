@@ -4,6 +4,8 @@ import {
   stripe,
   createPublicTrialCheckoutSession,
   checkTrialEligibility,
+  checkDualTrialEligibility,
+  createDualTrialCheckoutSession,
   getUserIdFromStripeCustomer,
 } from "./utils/stripe";
 import { findSubscriptionPlan } from "../../config/plans";
@@ -97,23 +99,68 @@ export const handler: Handler = async (event) => {
       return withCors(jsonResponse(400, { error: "Missing request body" }), cors);
     }
 
-    let appKey: string;
+    let appKey: string | undefined;
     let email: string | undefined;
+    let dualTrial = false;
 
     try {
       const body = JSON.parse(event.body);
       appKey = body.appKey;
       email = body.email?.trim()?.toLowerCase();
+      if (body.dualTrial === true) dualTrial = true;
     } catch {
       return withCors(jsonResponse(400, { error: "Invalid JSON body" }), cors);
     }
 
-    if (!appKey || !VALID_APP_KEYS.has(appKey)) {
+    // Dual trial doesn't require appKey; single-app trial does
+    if (!dualTrial && (!appKey || !VALID_APP_KEYS.has(appKey))) {
       return withCors(jsonResponse(400, { error: `Invalid appKey. Must be one of: ${[...VALID_APP_KEYS].join(", ")}` }), cors);
     }
 
-    // Look up the recurring price ID
-    const plan = findSubscriptionPlan(appKey);
+    // If email provided, check for existing Stripe customer
+    let existingCustomerId: string | undefined;
+    let existingUserId: string | undefined;
+
+    if (email) {
+      const existing = await stripe.customers.list({ email, limit: 1 });
+
+      if (existing.data.length > 0) {
+        existingCustomerId = existing.data[0].id;
+        const userId = await getUserIdFromStripeCustomer(existingCustomerId);
+        if (userId) existingUserId = userId;
+      }
+    }
+
+    // Dual trial flow
+    if (dualTrial) {
+      // Check eligibility if we have a known user
+      if (existingUserId && existingCustomerId) {
+        const eligibility = await checkDualTrialEligibility(existingUserId, existingCustomerId);
+        if (!eligibility.eligible) {
+          return withCors(
+            jsonResponse(409, { error: `Not eligible for trial: ${eligibility.reason}` }),
+            cors
+          );
+        }
+      }
+
+      const successUrl = `${DASHBOARD_URL}/?checkout=trial-success`;
+      const cancelUrl = `${DASHBOARD_URL}/?checkout=cancelled`;
+
+      const session = await createDualTrialCheckoutSession({
+        customerId: existingCustomerId,
+        customerEmail: existingCustomerId ? undefined : email,
+        userId: existingUserId,
+        successUrl,
+        cancelUrl,
+        flow: "unauthenticated",
+      });
+
+      return withCors(jsonResponse(200, { url: session.url }), cors);
+    }
+
+    // Single-app trial flow (legacy)
+    const plan = findSubscriptionPlan(appKey!);
     const recurringPriceId = plan?.stripePriceIdMonthly;
 
     if (!recurringPriceId) {
@@ -123,28 +170,14 @@ export const handler: Handler = async (event) => {
     const successUrl = `${DASHBOARD_URL}/try/${appKey}?checkout=success`;
     const cancelUrl = `${DASHBOARD_URL}/try/${appKey}?checkout=cancelled`;
 
-    // If email provided, check for existing Stripe customer + trial eligibility
-    let existingCustomerId: string | undefined;
-
-    if (email) {
-      const existing = await stripe.customers.list({ email, limit: 1 });
-
-      if (existing.data.length > 0) {
-        existingCustomerId = existing.data[0].id;
-
-        // Check if this customer has an existing BFEAI account
-        const userId = await getUserIdFromStripeCustomer(existingCustomerId);
-
-        if (userId) {
-          // Check trial eligibility
-          const eligibility = await checkTrialEligibility(userId, appKey, existingCustomerId);
-          if (!eligibility.eligible) {
-            return withCors(
-              jsonResponse(409, { error: `Not eligible for trial: ${eligibility.reason}` }),
-              cors
-            );
-          }
-        }
+    // Check single-app trial eligibility if we have a known user
+    if (existingUserId && existingCustomerId) {
+      const eligibility = await checkTrialEligibility(existingUserId, appKey!, existingCustomerId);
+      if (!eligibility.eligible) {
+        return withCors(
+          jsonResponse(409, { error: `Not eligible for trial: ${eligibility.reason}` }),
+          cors
+        );
       }
     }
 
@@ -153,7 +186,7 @@ export const handler: Handler = async (event) => {
       customerId: existingCustomerId,
       customerEmail: existingCustomerId ? undefined : email,
       recurringPriceId,
-      appKey,
+      appKey: appKey!,
       successUrl,
       cancelUrl,
     });
