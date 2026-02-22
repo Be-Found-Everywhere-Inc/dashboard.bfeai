@@ -261,7 +261,7 @@ export function AppSidebar({
           {/* User profile */}
           {user && (
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip={user.fullName ?? user.email} isActive={isProfile} className={isProfile ? activeClass : undefined}>
+              <SidebarMenuButton asChild size="lg" tooltip={user.fullName ?? user.email} isActive={isProfile} className={isProfile ? activeClass : undefined}>
                 <a href={profileHref} className="flex items-center gap-2">
                   {user.avatarUrl ? (
                     <img
@@ -274,7 +274,7 @@ export function AppSidebar({
                       {getInitials(user.fullName)}
                     </span>
                   )}
-                  <span className={cn("flex flex-col leading-tight", isCollapsed && "hidden")}>
+                  <span className={cn("min-w-0 flex flex-col leading-tight", isCollapsed && "hidden")}>
                     {user.fullName && (
                       <span className="truncate text-sm font-medium">{user.fullName}</span>
                     )}
