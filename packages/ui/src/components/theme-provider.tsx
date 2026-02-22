@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 
 export interface ThemeProviderProps {
   children: React.ReactNode;
@@ -13,24 +13,33 @@ export interface ThemeProviderProps {
   disableTransitionOnChange?: boolean;
 }
 
+/** Reads the bfeai_theme cookie set by ThemeToggle across .bfeai.com apps */
+function getCookieTheme(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(/(?:^|;\s*)bfeai_theme=(light|dark)/);
+  return match ? match[1] : null;
+}
+
+/** Syncs theme from cross-app cookie on mount so all apps share the same theme */
+function ThemeCookieSync({ children }: { children: React.ReactNode }) {
+  const { setTheme } = useTheme();
+  const synced = React.useRef(false);
+
+  React.useEffect(() => {
+    if (synced.current) return;
+    synced.current = true;
+    const cookieTheme = getCookieTheme();
+    if (cookieTheme) {
+      setTheme(cookieTheme);
+    }
+  }, [setTheme]);
+
+  return <>{children}</>;
+}
+
 /**
  * Theme provider for BFEAI apps. Wraps next-themes with ecosystem defaults.
- *
- * Usage:
- * ```tsx
- * // In your root layout.tsx
- * import { ThemeProvider } from "@bfeai/ui";
- *
- * export default function RootLayout({ children }) {
- *   return (
- *     <html lang="en" suppressHydrationWarning>
- *       <body>
- *         <ThemeProvider>{children}</ThemeProvider>
- *       </body>
- *     </html>
- *   );
- * }
- * ```
+ * Reads the shared bfeai_theme cookie on mount for cross-app theme persistence.
  */
 export function ThemeProvider({
   children,
@@ -48,7 +57,7 @@ export function ThemeProvider({
       disableTransitionOnChange={disableTransitionOnChange}
       {...props}
     >
-      {children}
+      <ThemeCookieSync>{children}</ThemeCookieSync>
     </NextThemesProvider>
   );
 }
