@@ -628,10 +628,16 @@ async function handleInvoiceActionRequired(invoice: Stripe.Invoice) {
 }
 
 async function handleCustomerUpdated(customer: Stripe.Customer) {
-  if (customer.deleted) return;
+  console.log(`[stripe-webhook] customer.updated received for Stripe customer: ${customer.id}, name: "${customer.name}", email: "${customer.email}", phone: "${customer.phone}"`);
+
+  if (customer.deleted) {
+    console.log(`[stripe-webhook] customer.updated: customer is deleted, skipping`);
+    return;
+  }
 
   // Primary lookup: by stripe_customer_id on profiles
   let userId = await getUserIdFromStripeCustomer(customer.id);
+  console.log(`[stripe-webhook] customer.updated: primary lookup (stripe_customer_id) result: ${userId ?? "null"}`);
 
   // Fallback 1: Stripe customer metadata may have bfeai_user_id
   if (!userId && customer.metadata?.bfeai_user_id) {
@@ -674,15 +680,14 @@ async function handleCustomerUpdated(customer: Stripe.Customer) {
   if (customer.name) {
     updates.full_name = customer.name;
   }
-  if (customer.phone) {
-    updates.phone = customer.phone;
-  }
 
   // Only write if there's something to sync beyond updated_at
   if (Object.keys(updates).length <= 1) {
-    console.log(`[stripe-webhook] customer.updated for user ${userId} — no profile fields to sync`);
+    console.log(`[stripe-webhook] customer.updated for user ${userId} — no profile fields to sync (name: "${customer.name}", phone: "${customer.phone}")`);
     return;
   }
+
+  console.log(`[stripe-webhook] customer.updated: writing to profiles for user ${userId}:`, JSON.stringify(updates));
 
   const { error } = await supabaseAdmin
     .from("profiles")

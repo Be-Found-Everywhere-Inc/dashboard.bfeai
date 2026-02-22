@@ -240,7 +240,7 @@ export default function ProfilePageClient() {
                 </div>
               </Button>
             </Link>
-            <a href="https://payments.bfeai.com/billing">
+            <Link href="/billing">
               <Button variant="outline" className="w-full justify-start gap-2 h-auto py-3">
                 <CreditCard className="h-4 w-4" />
                 <div className="text-left">
@@ -248,7 +248,7 @@ export default function ProfilePageClient() {
                   <p className="text-xs text-gray-700 dark:text-gray-300">Payment methods</p>
                 </div>
               </Button>
-            </a>
+            </Link>
           </div>
         </CardContent>
       </Card>
