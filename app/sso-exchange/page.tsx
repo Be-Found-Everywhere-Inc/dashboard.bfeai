@@ -22,8 +22,7 @@ function isValidRedirectUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname.toLowerCase();
-    return hostname === 'payments.bfeai.com' ||
-           hostname.endsWith('.bfeai.com');
+    return hostname.endsWith('.bfeai.com');
   } catch {
     // Invalid URL format
     return false;

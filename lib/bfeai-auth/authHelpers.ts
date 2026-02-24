@@ -7,9 +7,10 @@ import type { JWTPayload } from './types';
 const COOKIE_NAME = 'bfeai_session';
 const COOKIE_DOMAIN = '.bfeai.com';
 
-const ACCOUNTS_URL = process.env.NEXT_PUBLIC_ACCOUNTS_URL || 'https://accounts.bfeai.com';
-const PAYMENTS_URL = process.env.NEXT_PUBLIC_PAYMENTS_URL || 'https://payments.bfeai.com';
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'payments';
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_DASHBOARD_URL || 'https://dashboard.bfeai.com';
+const ACCOUNTS_URL = DASHBOARD_URL;
+const PAYMENTS_URL = DASHBOARD_URL;
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'dashboard';
 
 /**
  * Get the session token from cookies

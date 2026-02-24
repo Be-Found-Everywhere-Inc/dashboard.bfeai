@@ -194,7 +194,7 @@ export default function ProfilePageClient() {
 
             {/* Manage Subscriptions */}
             <a
-              href="https://payments.bfeai.com"
+              href="/billing"
               className="group flex items-center gap-4 p-4 rounded-lg border border-border hover:border-primary hover:shadow-md transition-all"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-light text-primary group-hover:bg-primary group-hover:text-white transition-colors">

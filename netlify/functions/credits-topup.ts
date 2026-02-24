@@ -37,12 +37,9 @@ const TOP_UP_PACKS: Record<string, TopUpPack> = {
   },
 };
 
-const SUCCESS_URL = process.env.NEXT_PUBLIC_PAYMENTS_URL
-  ? `${process.env.NEXT_PUBLIC_PAYMENTS_URL}/credits?topup=success`
-  : "https://payments.bfeai.com/credits?topup=success";
-const CANCEL_URL = process.env.NEXT_PUBLIC_PAYMENTS_URL
-  ? `${process.env.NEXT_PUBLIC_PAYMENTS_URL}/credits?topup=cancelled`
-  : "https://payments.bfeai.com/credits?topup=cancelled";
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://dashboard.bfeai.com";
+const SUCCESS_URL = `${DASHBOARD_URL}/credits?topup=success`;
+const CANCEL_URL = `${DASHBOARD_URL}/credits?topup=cancelled`;
 
 export const handler = withErrorHandling(async (event) => {
   if (event.httpMethod !== "POST") {
