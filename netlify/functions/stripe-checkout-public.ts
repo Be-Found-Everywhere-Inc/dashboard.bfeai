@@ -215,6 +215,7 @@ export const handler: Handler = async (event) => {
 
     const sessionParams: Record<string, unknown> = {
       mode: "subscription" as const,
+      allow_promotion_codes: true,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: successUrl,
       cancel_url: cancelUrl,

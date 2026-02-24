@@ -88,6 +88,7 @@ export const createCheckoutSession = async (
   return stripe.checkout.sessions.create({
     customer: customerId,
     mode: "subscription",
+    allow_promotion_codes: true,
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: successUrl,
     cancel_url: cancelUrl,
@@ -112,6 +113,7 @@ export const createTopUpCheckoutSession = async (
   return stripe.checkout.sessions.create({
     customer: customerId,
     mode: "payment",
+    allow_promotion_codes: true,
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: successUrl,
     cancel_url: cancelUrl,
@@ -190,6 +192,7 @@ export const createTrialCheckoutSession = async (
   return stripe.checkout.sessions.create({
     customer: customerId,
     mode: "subscription",
+    allow_promotion_codes: true,
     line_items: lineItems,
     success_url: successUrl,
     cancel_url: cancelUrl,
@@ -226,6 +229,7 @@ export const createPublicTrialCheckoutSession = async (
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: "subscription",
+    allow_promotion_codes: true,
     line_items: lineItems,
     success_url: opts.successUrl,
     cancel_url: opts.cancelUrl,
@@ -669,6 +673,7 @@ export const createDualTrialCheckoutSession = async (
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: "payment",
+    allow_promotion_codes: true,
     line_items: [{ price: DUAL_TRIAL_SETUP_FEE_PRICE_ID, quantity: 1 }],
     success_url: opts.successUrl,
     cancel_url: opts.cancelUrl,
