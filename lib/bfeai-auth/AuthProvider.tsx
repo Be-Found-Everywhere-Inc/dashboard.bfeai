@@ -35,7 +35,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Server-side middleware and layout already validate auth before this runs.
    * We fetch user info via API call instead of reading the cookie directly.
    *
-   * Subscription data is NOT fetched here — payments.bfeai is the subscription
+   * Subscription data is NOT fetched here — dashboard.bfeai is the subscription
    * manager itself. Subscription data is loaded via useBilling/useCredits hooks.
    */
   const initializeAuth = useCallback(async () => {
@@ -135,7 +135,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   /**
    * Check subscription for a specific app
-   * Returns false since payments.bfeai doesn't gate on subscriptions
+   * Returns false since dashboard.bfeai doesn't gate on subscriptions
    */
   const checkSubscription = useCallback(async (_targetApp: string): Promise<boolean> => {
     return false;

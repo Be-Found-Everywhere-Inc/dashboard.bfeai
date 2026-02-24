@@ -166,11 +166,19 @@ export const CreditBalanceCard = ({
       </CardContent>
 
       {onViewCredits && (
-        <CardFooter>
+        <CardFooter className="flex gap-2">
+          <Button
+            size="sm"
+            className="flex-1 gap-2"
+            onClick={onViewCredits}
+          >
+            <TrendingUp className="h-4 w-4" />
+            Top up credits
+          </Button>
           <Button
             variant="ghost"
             size="sm"
-            className="w-full gap-2"
+            className="flex-1 gap-2"
             onClick={onViewCredits}
           >
             View credit history
