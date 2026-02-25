@@ -79,10 +79,7 @@ function DashboardContent({
         {/* Page Content */}
         <div className="flex-1 p-4 md:p-6 lg:p-8">
           <div className="mx-auto max-w-5xl">
-            {/* Page Children */}
-            <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-              {children}
-            </div>
+            {children}
           </div>
         </div>
         <BugReportWidget appSource="dashboard" />

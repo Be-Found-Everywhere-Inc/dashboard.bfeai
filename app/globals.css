@@ -186,20 +186,21 @@
     font-variation-settings: normal;
   }
 
-  /* Typography hierarchy - BFEAI Brand Guide compliant */
+  /* Typography hierarchy - Plus Jakarta Sans for headings */
   h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     font-weight: 700;
-    letter-spacing: -0.025em;
-    line-height: 1.2;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
     color: var(--foreground);
   }
 
-  h1 { font-size: 2.25rem; }   /* 36px - Brand spec */
-  h2 { font-size: 1.875rem; }  /* 30px - Brand spec */
-  h3 { font-size: 1.5rem; }    /* 24px - Brand spec */
-  h4 { font-size: 1.25rem; }   /* 20px - Brand spec */
-  h5 { font-size: 1.125rem; }  /* 18px */
-  h6 { font-size: 1rem; }      /* 16px */
+  h1 { font-size: 2.25rem; }
+  h2 { font-size: 1.875rem; }
+  h3 { font-size: 1.5rem; }
+  h4 { font-size: 1.25rem; }
+  h5 { font-size: 1.125rem; }
+  h6 { font-size: 1rem; }
 }
 
 /* Premium Component Styles */
@@ -307,6 +308,12 @@
     animation: shimmer 2s infinite;
   }
 
+  .dark .animate-shimmer {
+    background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+  }
+
   /* Pulse animation - using brand Indigo */
   @keyframes pulse-ring {
     0% {
@@ -360,6 +367,85 @@
 
   .animate-delay-400 {
     animation-delay: 400ms;
+  }
+
+  .animate-delay-500 {
+    animation-delay: 500ms;
+  }
+
+  .animate-delay-600 {
+    animation-delay: 600ms;
+  }
+
+  /* Stagger children — use animate-fade-in with fill-mode */
+  .animate-fade-in-up {
+    opacity: 0;
+    animation: fadeIn 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Card lift on hover */
+  .card-hover-lift {
+    transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 250ms cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .card-hover-lift:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.12), 0 4px 8px -4px rgba(0, 0, 0, 0.08);
+  }
+  .dark .card-hover-lift:hover:not(:disabled) {
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.4), 0 4px 8px -4px rgba(0, 0, 0, 0.3);
+  }
+  .card-hover-lift:active:not(:disabled) {
+    transform: translateY(-1px) scale(0.98);
+  }
+
+  /* Button press micro-interaction */
+  .btn-press:active:not(:disabled) {
+    transform: scale(0.97);
+    transition: transform 100ms ease;
+  }
+
+  /* Gradient border effect */
+  .gradient-border {
+    position: relative;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+  }
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, var(--brand-indigo), var(--brand-teal), var(--brand-purple));
+    z-index: -1;
+    opacity: 0.4;
+  }
+
+  /* Page title style */
+  .page-title {
+    font-family: var(--font-heading), 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+  }
+
+  /* Counter animation */
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-count-up {
+    animation: countUp 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Subtle float */
+  @keyframes subtleFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  .animate-float {
+    animation: subtleFloat 3s ease-in-out infinite;
   }
 }
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ToasterProvider } from "@/components/providers/toaster-provider";
@@ -10,6 +10,13 @@ const inter = Inter({
   subsets: ["latin"],
   weight: ['300', '400', '500', '600', '700', '800'],
   variable: '--font-inter',
+  display: 'swap',
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ['500', '600', '700', '800'],
+  variable: '--font-heading',
   display: 'swap',
 });
 
@@ -39,7 +46,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased`}>
+      <body className={`${inter.className} ${plusJakarta.variable} antialiased`}>
         <ThemeProvider defaultTheme="system" enableSystem>
           <QueryProvider>
             <AuthProvider>

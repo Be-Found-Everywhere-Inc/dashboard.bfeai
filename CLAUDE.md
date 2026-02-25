@@ -567,7 +567,60 @@ const deductFromSub = cost - deductFromTopup;
 
 ---
 
-## 15. Stripe v20 API Gotchas
+## 15. UI Design System
+
+### Typography
+
+Dashboard uses **Plus Jakarta Sans** for headings and **Inter** for body text:
+
+- Loaded via `next/font/google` in `app/layout.tsx` as CSS variable `--font-heading`
+- Applied globally in `globals.css` to all `h1`–`h6` elements
+- Available as Tailwind class `font-heading` (configured in `tailwind.config.js`)
+- Heading styles: `font-weight: 700`, `letter-spacing: -0.03em`, `line-height: 1.15`
+
+### CSS Utility Classes (globals.css)
+
+| Class | Purpose |
+|-------|---------|
+| `animate-fade-in-up` | Entrance animation: fade in + slide up 16px, `fill-mode: forwards` |
+| `card-hover-lift` | Card hover: `translateY(-3px)` + shadow, with `:not(:disabled)` guard |
+| `btn-press` | Button press: `scale(0.97)` on active, with `:not(:disabled)` guard |
+| `page-title` | Page heading: `font-weight: 800`, `letter-spacing: -0.04em` |
+| `animate-float` | Decorative floating bob (infinite, subtle) |
+| `gradient-border` | Gradient border via `background-clip` trick |
+
+### Page Layout Pattern
+
+Every dashboard page follows this structure:
+
+```tsx
+<div className="space-y-6">
+  <div>
+    <h1 className="page-title text-2xl text-foreground">Page Title</h1>
+    <p className="text-sm text-muted-foreground mt-1">Description</p>
+  </div>
+  <div className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+    <Card className="card-hover-lift">...</Card>
+  </div>
+</div>
+```
+
+- **No wrapper card** — `DashboardShell.tsx` passes children directly (no outer `<Card>` border)
+- **Page header** — Every page has a `page-title` h1 + subtitle
+- **Staggered entrance** — Cards use `animate-fade-in-up` with incremental `animationDelay`
+- **Micro-interactions** — Cards use `card-hover-lift`, buttons use `btn-press`
+
+### Auth Pages (Login/Signup)
+
+Split-layout design: 45% left brand panel (dark gradient, logo, tagline) + 55% right form panel. Stacks vertically on mobile. Each page uses a different gradient angle for distinction.
+
+### Dashboard Home
+
+Welcome hero section with time-of-day greeting, user's first name, stat pills (active apps, credit balance), and staggered card grid with entrance animations.
+
+---
+
+## 16. Stripe v20 API Gotchas
 
 - `subscription.current_period_start/end` REMOVED — use `latest_invoice.period_start/end` (expand `latest_invoice`)
 - `subscription.update({ coupon })` REMOVED — use `discounts: [{ coupon: couponId }]`
@@ -577,7 +630,7 @@ const deductFromSub = cost - deductFromTopup;
 
 ---
 
-## 16. Anti-patterns to Avoid
+## 17. Anti-patterns to Avoid
 
 1. **Never set cookie without `.bfeai.com` domain** — SSO breaks without leading dot
 2. **Never expose JWT_SECRET or service role key** — server-side only
@@ -592,7 +645,7 @@ const deductFromSub = cost - deductFromTopup;
 
 ---
 
-## 17. Related Documentation
+## 18. Related Documentation
 
 - **Root CLAUDE.md**: `../../CLAUDE.md`
 - **SSO Architecture**: `../../docs/04-Architecture/sso-architecture.md`
@@ -601,6 +654,8 @@ const deductFromSub = cost - deductFromTopup;
 - **Billing Events**: `../../docs/04-Architecture/billing-events-guide.md`
 - **Environment Variables**: `../../docs/04-Architecture/environment-variables.md`
 - **Brand Guide**: `../../docs/05-Design/BFEAI_Brand_Guide.md`
+- **Theme & Layout Guide**: `../../docs/05-Design/theme-and-layout-guide.md`
+- **Anti-patterns & Gotchas**: `../../docs/06-Development/anti-patterns-and-gotchas.md`
 - **Keywords App**: `../keywords.bfeai/CLAUDE.md`
 - **LABS App**: `../LABS/CLAUDE.md`
 - **Admin App**: `../admin.bfeai/CLAUDE.md`

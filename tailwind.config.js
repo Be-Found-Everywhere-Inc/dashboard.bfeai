@@ -110,9 +110,7 @@ const config = {
         'bounce': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
       },
       fontFamily: {
-        // Garet for headings (brand font), with fallback
-        heading: ['Garet', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        // System fonts for body text (optimal performance)
+        heading: ['var(--font-heading)', 'Plus Jakarta Sans', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
         body: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
         mono: ['SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'monospace'],

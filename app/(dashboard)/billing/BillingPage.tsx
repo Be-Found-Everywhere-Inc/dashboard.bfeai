@@ -40,15 +40,21 @@ export function BillingPage() {
 
   return (
     <div className="space-y-8">
+      {/* Page header */}
+      <div className="animate-fade-in-up">
+        <h1 className="page-title text-2xl md:text-3xl text-foreground">Billing</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Manage payment methods, view invoices, and update billing details.</p>
+      </div>
+
       {/* Stripe Billing Portal */}
-      <Card>
+      <Card className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-indigo/20 text-brand-indigo">
               <CreditCard className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle>Billing & Invoices</CardTitle>
+              <CardTitle className="font-heading">Billing & Invoices</CardTitle>
               <CardDescription>
                 Manage your payment method, view invoices, and update billing details.
               </CardDescription>

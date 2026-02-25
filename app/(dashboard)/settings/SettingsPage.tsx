@@ -302,15 +302,21 @@ export default function SettingsPageClient() {
 
   return (
     <div className="space-y-6">
+      {/* Page header */}
+      <div className="animate-fade-in-up">
+        <h1 className="page-title text-2xl md:text-3xl text-foreground">Settings</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Manage your profile, security, and account preferences.</p>
+      </div>
+
       {/* Avatar Upload */}
-      <Card>
+      <Card className="animate-fade-in-up" style={{ animationDelay: '100ms' }}>
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-indigo/10 text-brand-indigo">
               <Camera className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle className="text-lg">Profile Picture</CardTitle>
+              <CardTitle className="text-lg font-heading">Profile Picture</CardTitle>
               <CardDescription>Upload a profile picture to personalize your account</CardDescription>
             </div>
           </div>
@@ -369,14 +375,14 @@ export default function SettingsPageClient() {
       </Card>
 
       {/* Profile Settings */}
-      <Card>
+      <Card className="animate-fade-in-up" style={{ animationDelay: '200ms' }}>
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-light text-primary">
               <User className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle className="text-lg">Profile Information</CardTitle>
+              <CardTitle className="text-lg font-heading">Profile Information</CardTitle>
               <CardDescription>Update your account details and preferences</CardDescription>
             </div>
           </div>
@@ -462,14 +468,14 @@ export default function SettingsPageClient() {
       </Card>
 
       {/* Security */}
-      <Card>
+      <Card className="animate-fade-in-up" style={{ animationDelay: '300ms' }}>
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning-light text-warning">
               <KeyRound className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle className="text-lg">Security</CardTitle>
+              <CardTitle className="text-lg font-heading">Security</CardTitle>
               <CardDescription>Manage your password and security settings</CardDescription>
             </div>
           </div>
@@ -485,14 +491,14 @@ export default function SettingsPageClient() {
       </Card>
 
       {/* Your Data */}
-      <Card>
+      <Card className="animate-fade-in-up" style={{ animationDelay: '400ms' }}>
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-teal/10 text-brand-teal">
               <Download className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle className="text-lg">Your Data</CardTitle>
+              <CardTitle className="text-lg font-heading">Your Data</CardTitle>
               <CardDescription>Download a copy of all your personal data stored across BFEAI services</CardDescription>
             </div>
           </div>
@@ -514,14 +520,14 @@ export default function SettingsPageClient() {
       </Card>
 
       {/* Danger Zone */}
-      <Card className="border-error/30 dark:border-error/50">
+      <Card className="border-error/30 dark:border-error/50 animate-fade-in-up" style={{ animationDelay: '500ms' }}>
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-error-light text-error">
               <Trash2 className="h-5 w-5" />
             </div>
             <div>
-              <CardTitle className="text-lg text-error">Danger Zone</CardTitle>
+              <CardTitle className="text-lg font-heading text-error">Danger Zone</CardTitle>
               <CardDescription>Irreversible actions that will permanently affect your account</CardDescription>
             </div>
           </div>

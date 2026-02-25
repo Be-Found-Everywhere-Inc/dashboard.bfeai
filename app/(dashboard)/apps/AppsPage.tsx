@@ -106,17 +106,21 @@ export function AppsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <Card className="border-border bg-gradient-to-r from-brand-indigo/10 via-background to-brand-purple/10">
-        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="animate-fade-in-up relative overflow-hidden rounded-2xl border border-brand-indigo/10 bg-gradient-to-br from-brand-indigo/8 via-background to-brand-purple/6 p-6 md:p-8">
+        {/* Decorative shapes */}
+        <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-brand-indigo/5 blur-3xl" aria-hidden />
+        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-brand-teal/5 blur-2xl" aria-hidden />
+
+        <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <CardDescription className="uppercase text-xs tracking-wider text-brand-indigo">
+            <p className="text-xs font-semibold uppercase tracking-wider text-brand-indigo mb-1">
               App Marketplace
-            </CardDescription>
-            <CardTitle className="text-3xl font-bold text-foreground">
+            </p>
+            <h1 className="page-title text-2xl md:text-3xl text-foreground">
               Explore BFEAI Apps
-            </CardTitle>
+            </h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Discover powerful tools to grow your business. Subscribe to individual apps for credits-based usage.
+              Powerful tools to grow your business. Subscribe individually, pay with credits.
             </p>
           </div>
           {subscriptions.length > 0 && (
@@ -128,12 +132,12 @@ export function AppsPage() {
               ))}
             </div>
           )}
-        </CardHeader>
-      </Card>
+        </div>
+      </div>
 
       {/* Apps Grid */}
       <div className="grid gap-6 md:grid-cols-2">
-        {APP_ORDER.map((key) => {
+        {APP_ORDER.map((key, i) => {
           const app = APP_CATALOG[key];
           const status = getAppStatus(app);
           const IconComponent = ICON_MAP[app.icon] || Sparkles;
@@ -141,14 +145,15 @@ export function AppsPage() {
           return (
             <Card
               key={app.key}
-              className={`relative overflow-hidden border transition hover:-translate-y-0.5 hover:shadow-md ${
+              className={`animate-fade-in-up card-hover-lift relative overflow-hidden border transition ${
                 status === 'subscribed' || status === 'trialing'
-                  ? 'border-brand-indigo/30 bg-card'
-                  : 'border-border bg-card'
+                  ? 'border-brand-indigo/25 shadow-sm'
+                  : 'border-border'
               }`}
+              style={{ animationDelay: `${(i + 1) * 100 + 100}ms` }}
             >
               <div
-                className={`absolute inset-0 bg-gradient-to-br ${app.gradient} opacity-10`}
+                className={`absolute inset-0 bg-gradient-to-br ${app.gradient} opacity-[0.06]`}
                 aria-hidden
               />
 
@@ -162,20 +167,20 @@ export function AppsPage() {
                         <IconComponent className="h-6 w-6" />
                       </div>
                       <div>
-                        <CardTitle className="text-xl">{app.name}</CardTitle>
+                        <CardTitle className="text-xl font-heading">{app.name}</CardTitle>
                         <CardDescription className="text-sm">
                           {app.description}
                         </CardDescription>
                       </div>
                     </div>
                     {status === 'subscribed' && (
-                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30">
                         <Check className="mr-1 h-3 w-3" />
                         Active
                       </Badge>
                     )}
                     {status === 'trialing' && (
-                      <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+                      <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30">
                         <Zap className="mr-1 h-3 w-3" />
                         Trial
                       </Badge>
@@ -200,15 +205,10 @@ export function AppsPage() {
 
                   {/* Pricing */}
                   {app.pricing && status === 'available' && (
-                    <div className="flex items-baseline gap-1 pt-2">
-                      <span className="text-2xl font-bold text-foreground">${app.pricing.monthly}</span>
+                    <div className="flex items-baseline gap-1 pt-2 border-t border-border/50">
+                      <span className="text-2xl font-heading font-bold text-foreground">${app.pricing.monthly}</span>
                       <span className="text-sm text-muted-foreground">/month</span>
-                      {app.key === 'keywords' && (
-                        <span className="ml-2 text-xs text-muted-foreground">300 credits/mo</span>
-                      )}
-                      {app.key === 'labs' && (
-                        <span className="ml-2 text-xs text-muted-foreground">300 credits/mo</span>
-                      )}
+                      <span className="ml-2 text-xs text-muted-foreground">300 credits/mo</span>
                     </div>
                   )}
 
@@ -216,7 +216,7 @@ export function AppsPage() {
                     {status === 'subscribed' || status === 'trialing' ? (
                       <>
                         <Button
-                          className="flex-1 gap-2"
+                          className="flex-1 gap-2 btn-press"
                           onClick={() => handleLaunchApp(app)}
                         >
                           <ExternalLink className="h-4 w-4" />
@@ -224,6 +224,7 @@ export function AppsPage() {
                         </Button>
                         <Button
                           variant="outline"
+                          className="btn-press"
                           onClick={() => setSelectedApp(app)}
                         >
                           Details
@@ -232,7 +233,7 @@ export function AppsPage() {
                     ) : (
                       <>
                         <Button
-                          className="flex-1 gap-2"
+                          className="flex-1 gap-2 btn-press"
                           disabled={checkoutLoading}
                           onClick={() => void handleSubscribe(app.key)}
                         >
@@ -241,7 +242,7 @@ export function AppsPage() {
                         </Button>
                         <Button
                           variant="outline"
-                          className="gap-1.5 border-brand-indigo/40 text-brand-indigo hover:bg-brand-indigo/5 hover:text-brand-indigo"
+                          className="gap-1.5 border-brand-indigo/40 text-brand-indigo hover:bg-brand-indigo/5 hover:text-brand-indigo btn-press"
                           disabled={trialCheckoutLoading}
                           onClick={() => void handleStartTrial(app.key)}
                         >
@@ -273,7 +274,7 @@ export function AppsPage() {
                     })()}
                   </div>
                   <div>
-                    <DialogTitle>{selectedApp.name}</DialogTitle>
+                    <DialogTitle className="font-heading">{selectedApp.name}</DialogTitle>
                     <DialogDescription>{selectedApp.description}</DialogDescription>
                   </div>
                 </div>
@@ -283,12 +284,12 @@ export function AppsPage() {
                 <p>{selectedApp.longDescription}</p>
 
                 <div>
-                  <p className="font-semibold text-foreground mb-3">Features included:</p>
+                  <p className="font-semibold font-heading text-foreground mb-3">Features included:</p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {selectedApp.features.map((feature) => (
                       <div
                         key={feature}
-                        className="flex items-center gap-2 rounded-xl border border-border bg-muted p-3"
+                        className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 p-3"
                       >
                         <Check className="h-4 w-4 text-brand-indigo flex-shrink-0" />
                         <span>{feature}</span>
@@ -298,10 +299,10 @@ export function AppsPage() {
                 </div>
 
                 {selectedApp.pricing && (
-                  <div className="rounded-xl border border-border bg-card p-4">
-                    <p className="font-semibold text-foreground">Pricing</p>
+                  <div className="rounded-xl border border-brand-indigo/15 bg-brand-indigo/5 p-4">
+                    <p className="font-semibold font-heading text-foreground">Pricing</p>
                     <div className="mt-2 flex items-baseline gap-2">
-                      <span className="text-3xl font-bold text-foreground">${selectedApp.pricing.monthly}</span>
+                      <span className="text-3xl font-heading font-bold text-foreground">${selectedApp.pricing.monthly}</span>
                       <span className="text-muted-foreground">/month</span>
                     </div>
                   </div>
@@ -309,14 +310,14 @@ export function AppsPage() {
               </div>
 
               <DialogFooter className="flex flex-col gap-3 sm:flex-row">
-                <Button variant="outline" className="w-full" onClick={() => setSelectedApp(null)}>
+                <Button variant="outline" className="w-full btn-press" onClick={() => setSelectedApp(null)}>
                   Close
                 </Button>
                 {getAppStatus(selectedApp) === 'available' ? (
                   <>
                     <Button
                       variant="outline"
-                      className="w-full gap-2 border-brand-indigo/40 text-brand-indigo hover:bg-brand-indigo/5"
+                      className="w-full gap-2 border-brand-indigo/40 text-brand-indigo hover:bg-brand-indigo/5 btn-press"
                       disabled={trialCheckoutLoading}
                       onClick={() => {
                         void handleStartTrial(selectedApp.key);
@@ -326,7 +327,7 @@ export function AppsPage() {
                       Try for $1 — 7 days
                     </Button>
                     <Button
-                      className="w-full gap-2"
+                      className="w-full gap-2 btn-press"
                       onClick={() => {
                         void handleSubscribe(selectedApp.key);
                         setSelectedApp(null);
@@ -338,7 +339,7 @@ export function AppsPage() {
                   </>
                 ) : (
                   <Button
-                    className="w-full gap-2"
+                    className="w-full gap-2 btn-press"
                     onClick={() => {
                       handleLaunchApp(selectedApp);
                       setSelectedApp(null);

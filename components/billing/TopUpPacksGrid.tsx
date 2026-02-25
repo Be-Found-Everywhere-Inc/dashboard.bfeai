@@ -58,7 +58,7 @@ export const TopUpPacksGrid = ({
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Zap className="h-5 w-5 text-brand-indigo" />
-        <h3 className="text-lg font-semibold text-foreground">Top-Up Credit Packs</h3>
+        <h3 className="text-lg font-heading font-semibold text-foreground">Top-Up Credit Packs</h3>
       </div>
       <p className="text-sm text-muted-foreground">
         Need more credits? Purchase a one-time top-up pack. Credits never expire and are used before your subscription credits.
@@ -70,9 +70,9 @@ export const TopUpPacksGrid = ({
           return (
             <Card
               key={pack.key}
-              className={`relative transition hover:-translate-y-0.5 hover:shadow-md ${
+              className={`relative card-hover-lift ${
                 pack.bestValue
-                  ? "border-brand-indigo/50 ring-1 ring-brand-indigo/20"
+                  ? "border-brand-indigo/50 ring-1 ring-brand-indigo/20 shadow-sm"
                   : "border-border"
               }`}
             >
@@ -103,7 +103,7 @@ export const TopUpPacksGrid = ({
                 </div>
 
                 <Button
-                  className="w-full"
+                  className="w-full btn-press"
                   variant={pack.bestValue ? "default" : "outline"}
                   disabled={isLoading || Boolean(purchaseLoading)}
                   onClick={() => void handlePurchase(pack)}
