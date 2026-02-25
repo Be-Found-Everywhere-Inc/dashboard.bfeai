@@ -7,6 +7,7 @@ import {
   checkDualTrialEligibility,
   createDualTrialCheckoutSession,
   getUserIdFromStripeCustomer,
+  getOrCreateStripeCustomerByEmail,
 } from "./utils/stripe";
 import { findSubscriptionPlan } from "../../config/plans";
 import { Ratelimit } from "@upstash/ratelimit";
@@ -123,25 +124,27 @@ export const handler: Handler = async (event) => {
       return withCors(jsonResponse(400, { error: `Invalid appKey. Must be one of: ${[...VALID_APP_KEYS].join(", ")}` }), cors);
     }
 
-    // If email provided, check for existing Stripe customer
-    let existingCustomerId: string | undefined;
+    // Always pre-create the Stripe customer before creating checkout sessions.
+    // Never use customer_email on sessions — Stripe auto-creates a second
+    // customer object when customer_email is used, causing duplicates.
+    let customerId: string | undefined;
     let existingUserId: string | undefined;
 
     if (email) {
-      const existing = await stripe.customers.list({ email, limit: 1 });
+      customerId = await getOrCreateStripeCustomerByEmail(email);
+      const userId = await getUserIdFromStripeCustomer(customerId);
+      if (userId) existingUserId = userId;
+    }
 
-      if (existing.data.length > 0) {
-        existingCustomerId = existing.data[0].id;
-        const userId = await getUserIdFromStripeCustomer(existingCustomerId);
-        if (userId) existingUserId = userId;
-      }
+    if (!customerId) {
+      return withCors(jsonResponse(400, { error: "Email is required for checkout" }), cors);
     }
 
     // Dual trial flow
     if (dualTrial) {
       // Check eligibility if we have a known user
-      if (existingUserId && existingCustomerId) {
-        const eligibility = await checkDualTrialEligibility(existingUserId, existingCustomerId);
+      if (existingUserId) {
+        const eligibility = await checkDualTrialEligibility(existingUserId, customerId);
         if (!eligibility.eligible) {
           return withCors(
             jsonResponse(409, { error: `Not eligible for trial: ${eligibility.reason}` }),
@@ -154,8 +157,7 @@ export const handler: Handler = async (event) => {
       const cancelUrl = `${DASHBOARD_URL}/?checkout=cancelled`;
 
       const session = await createDualTrialCheckoutSession({
-        customerId: existingCustomerId,
-        customerEmail: existingCustomerId ? undefined : email,
+        customerId,
         userId: existingUserId,
         successUrl,
         cancelUrl,
@@ -178,8 +180,8 @@ export const handler: Handler = async (event) => {
       const cancelUrl = `${DASHBOARD_URL}/try/${appKey}?checkout=cancelled`;
 
       // Check single-app trial eligibility if we have a known user
-      if (existingUserId && existingCustomerId) {
-        const eligibility = await checkTrialEligibility(existingUserId, appKey!, existingCustomerId);
+      if (existingUserId) {
+        const eligibility = await checkTrialEligibility(existingUserId, appKey!, customerId);
         if (!eligibility.eligible) {
           return withCors(
             jsonResponse(409, { error: `Not eligible for trial: ${eligibility.reason}` }),
@@ -189,8 +191,7 @@ export const handler: Handler = async (event) => {
       }
 
       const session = await createPublicTrialCheckoutSession({
-        customerId: existingCustomerId,
-        customerEmail: existingCustomerId ? undefined : email,
+        customerId,
         recurringPriceId,
         appKey: appKey!,
         successUrl,
@@ -213,25 +214,16 @@ export const handler: Handler = async (event) => {
     const successUrl = `${DASHBOARD_URL}/?checkout=success`;
     const cancelUrl = `${DASHBOARD_URL}/?checkout=cancelled`;
 
-    const sessionParams: Record<string, unknown> = {
-      mode: "subscription" as const,
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
       allow_promotion_codes: true,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: successUrl,
       cancel_url: cancelUrl,
       metadata: { type: "subscription", app_key: appKey, flow: "unauthenticated" },
       subscription_data: { metadata: { app_key: appKey } },
-    };
-
-    if (existingCustomerId) {
-      sessionParams.customer = existingCustomerId;
-    } else if (email) {
-      sessionParams.customer_email = email;
-    }
-
-    const session = await stripe.checkout.sessions.create(
-      sessionParams as Parameters<typeof stripe.checkout.sessions.create>[0]
-    );
+    });
 
     return withCors(jsonResponse(200, { url: session.url }), cors);
   } catch (err) {

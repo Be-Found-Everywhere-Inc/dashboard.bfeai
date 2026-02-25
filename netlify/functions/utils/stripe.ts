@@ -30,6 +30,8 @@ import { allocateTrialCredits } from "./credits";
 /**
  * Get or create a Stripe customer for a BFEAI user.
  * Stores stripe_customer_id on the profiles table.
+ * Uses a Stripe idempotency key to prevent duplicate customer creation from
+ * concurrent requests (e.g. two billing API calls firing at the same time).
  */
 export const getOrCreateStripeCustomer = async (
   userId: string,
@@ -54,11 +56,16 @@ export const getOrCreateStripeCustomer = async (
   if (existing.data.length > 0) {
     customerId = existing.data[0].id;
   } else {
-    const customer = await stripe.customers.create({
-      email,
-      name: name ?? undefined,
-      metadata: { bfeai_user_id: userId },
-    });
+    // Idempotency key ensures concurrent requests for the same email
+    // produce only one Stripe customer (key valid for 24h in Stripe).
+    const customer = await stripe.customers.create(
+      {
+        email,
+        name: name ?? undefined,
+        metadata: { bfeai_user_id: userId },
+      },
+      { idempotencyKey: `bfeai_cust_auth_${email.toLowerCase()}` }
+    );
     customerId = customer.id;
   }
 
@@ -69,6 +76,34 @@ export const getOrCreateStripeCustomer = async (
     .eq("id", userId);
 
   return customerId;
+};
+
+/**
+ * Get or create a Stripe customer by email only (no BFEAI user required).
+ * Used by the public/unauthenticated checkout flow where the user may not
+ * have a BFEAI account yet. The webhook will link the customer to a user later.
+ */
+export const getOrCreateStripeCustomerByEmail = async (
+  email: string
+): Promise<string> => {
+  const normalized = email.toLowerCase();
+
+  // Check if a Stripe customer already exists for this email
+  const existing = await stripe.customers.list({ email: normalized, limit: 1 });
+
+  if (existing.data.length > 0) {
+    return existing.data[0].id;
+  }
+
+  const customer = await stripe.customers.create(
+    {
+      email: normalized,
+      metadata: { bfeai_source: "public_checkout" },
+    },
+    { idempotencyKey: `bfeai_cust_pub_${normalized}` }
+  );
+
+  return customer.id;
 };
 
 // ---------------------------------------------------------------------------
@@ -206,13 +241,13 @@ export const createTrialCheckoutSession = async (
 
 /**
  * Create a Stripe Checkout session for an unauthenticated trial.
- * Accepts either an existing customerId OR a customer_email for new users.
+ * Always requires a pre-created customerId — never uses customer_email
+ * (which causes Stripe to auto-create a second customer object).
  * Adds metadata.flow: "unauthenticated" so the webhook knows to auto-provision.
  */
 export const createPublicTrialCheckoutSession = async (
   opts: {
-    customerId?: string;
-    customerEmail?: string;
+    customerId: string;
     recurringPriceId: string;
     appKey: string;
     successUrl: string;
@@ -227,7 +262,8 @@ export const createPublicTrialCheckoutSession = async (
     lineItems.push({ price: TRIAL_SETUP_FEE_PRICE_ID, quantity: 1 });
   }
 
-  const sessionParams: Stripe.Checkout.SessionCreateParams = {
+  return stripe.checkout.sessions.create({
+    customer: opts.customerId,
     mode: "subscription",
     allow_promotion_codes: true,
     line_items: lineItems,
@@ -238,15 +274,7 @@ export const createPublicTrialCheckoutSession = async (
       trial_period_days: 7,
       metadata: { app_key: opts.appKey },
     },
-  };
-
-  if (opts.customerId) {
-    sessionParams.customer = opts.customerId;
-  } else if (opts.customerEmail) {
-    sessionParams.customer_email = opts.customerEmail;
-  }
-
-  return stripe.checkout.sessions.create(sessionParams);
+  });
 };
 
 // ---------------------------------------------------------------------------
@@ -656,11 +684,11 @@ export const checkDualTrialEligibility = async (
 /**
  * Create a Stripe Checkout session for the dual trial $2 setup fee.
  * mode: "payment" — just collects the fee. Subscriptions are created by the webhook.
+ * Always requires a pre-created customerId — never uses customer_email.
  */
 export const createDualTrialCheckoutSession = async (
   opts: {
-    customerId?: string;
-    customerEmail?: string;
+    customerId: string;
     userId?: string;
     successUrl: string;
     cancelUrl: string;
@@ -671,7 +699,8 @@ export const createDualTrialCheckoutSession = async (
     throw new HttpError(500, "STRIPE_PRICE_DUAL_TRIAL_SETUP_FEE is not configured");
   }
 
-  const sessionParams: Stripe.Checkout.SessionCreateParams = {
+  return stripe.checkout.sessions.create({
+    customer: opts.customerId,
     mode: "payment",
     allow_promotion_codes: true,
     line_items: [{ price: DUAL_TRIAL_SETUP_FEE_PRICE_ID, quantity: 1 }],
@@ -688,15 +717,7 @@ export const createDualTrialCheckoutSession = async (
       ...(opts.userId ? { user_id: opts.userId } : {}),
       ...(opts.flow ? { flow: opts.flow } : {}),
     },
-  };
-
-  if (opts.customerId) {
-    sessionParams.customer = opts.customerId;
-  } else if (opts.customerEmail) {
-    sessionParams.customer_email = opts.customerEmail;
-  }
-
-  return stripe.checkout.sessions.create(sessionParams);
+  });
 };
 
 /**
