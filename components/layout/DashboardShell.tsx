@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { Menu } from 'lucide-react';
 
 import {
@@ -70,10 +71,10 @@ function DashboardContent({
             <Menu className="h-5 w-5" />
             <span className="sr-only">Toggle sidebar</span>
           </SidebarTrigger>
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <img src="/brand/BFE_Icon_TRN.png" alt="BFEAI" className="h-8 w-8 rounded-lg" />
             <span className="font-semibold">BFEAI</span>
-          </div>
+          </Link>
         </header>
 
         {/* Page Content */}

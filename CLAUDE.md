@@ -181,7 +181,7 @@ dashboard.bfeai/
 │
 ├── components/
 │   ├── layout/
-│   │   └── DashboardShell.tsx          # Sidebar nav + main layout (uses @bfeai/ui AppSidebar)
+│   │   └── DashboardShell.tsx          # Sidebar nav + main layout (uses @bfeai/ui AppSidebar) (logo wrapped in <Link>)
 │   ├── billing/
 │   │   ├── AppSubscriptionCard.tsx     # Current subscription display
 │   │   ├── CreditBalanceCard.tsx       # Credit balance (dual pool)
@@ -565,6 +565,10 @@ const deductFromTopup = Math.min(cost, balance.topupBalance);
 const deductFromSub = cost - deductFromTopup;
 ```
 
+### Radix Dialog Pattern
+
+`CancellationDialog` and BugReportWidget both use Radix Dialog. Import from `@bfeai/ui` or `@/components/ui/dialog`. Always provide `DialogTitle`.
+
 ---
 
 ## 15. UI Design System
@@ -618,6 +622,22 @@ Split-layout design: 45% left brand panel (dark gradient, logo, tagline) + 55% r
 
 Welcome hero section with time-of-day greeting, user's first name, stat pills (active apps, credit balance), and staggered card grid with entrance animations.
 
+### Viewport Meta
+
+The `viewport` named export in `app/layout.tsx` configures `maximumScale: 5` for WCAG zoom compliance and `viewportFit: 'cover'` for iPhone notch safe area. Never set `maximumScale=1` — this blocks user zoom and is a WCAG failure.
+
+### Touch Targets
+
+All interactive elements must meet 44x44px minimum tap target. SidebarTrigger uses `h-11 w-11` (44px). BugReportWidget FAB uses `h-11 w-11`. Icon-only buttons in tables use invisible touch expansion via `after:absolute after:-inset-2`.
+
+### Modal / Dialog Pattern
+
+All modals use Radix Dialog via `@bfeai/ui`. Every Dialog requires a `DialogTitle` (use `className="sr-only"` if visually hidden). Focus trap, Escape dismissal, and scroll lock are automatic.
+
+### BugReportWidget Accessibility
+
+The widget includes: `aria-label="Report a bug"` on the FAB, `aria-label="Close bug report"` on the close button, Escape key dismissal via `useEffect`, and `document.body.style.overflow = 'hidden'` scroll lock when open.
+
 ---
 
 ## 16. Stripe v20 API Gotchas
@@ -642,6 +662,9 @@ Welcome hero section with time-of-day greeting, user's first name, stat pills (a
 8. **Never block on credit tracking** — fire-and-forget for non-critical ops
 9. **`@bfeai/ui` must use `"file:./packages/ui"`** — never `"*"`
 10. **Never skip input sanitization** — always use DOMPurify
+11. **Never use `<div onClick>` without keyboard handler + role** — use `<button>` or add `role="button"` with `onKeyDown`
+12. **Never build modals without focus trapping** — use Radix Dialog from `@bfeai/ui`
+13. **Never set `maximumScale=1` on viewport** — blocks zoom, WCAG failure
 
 ---
 

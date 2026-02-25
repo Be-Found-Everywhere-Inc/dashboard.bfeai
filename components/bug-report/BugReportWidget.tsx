@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Bug, X, Camera, Loader2, CheckCircle, Terminal, Paperclip } from 'lucide-react';
 import { useConsoleCapture } from './useConsoleCapture';
 import { renderConsoleImage } from './renderConsoleImage';
@@ -85,6 +85,24 @@ export function BugReportWidget({ appSource }: BugReportWidgetProps) {
 
     setIsOpen(true);
   };
+
+  // Escape key dismissal
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  });
+
+  // Scroll lock when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = ''; };
+    }
+  }, [isOpen]);
 
   const handleClose = () => {
     setIsOpen(false);
@@ -180,10 +198,10 @@ export function BugReportWidget({ appSource }: BugReportWidgetProps) {
       {/* Floating Button */}
       <button
         onClick={handleOpen}
-        className="bug-report-widget fixed bottom-6 right-6 z-50 flex h-7 w-7 items-center justify-center rounded-full bg-[#454D9A] text-white shadow-lg hover:bg-[#3a4285] transition-all hover:scale-105 group"
-        title="Report a Bug"
+        className="bug-report-widget fixed bottom-6 right-6 z-50 flex h-11 w-11 items-center justify-center rounded-full bg-[#454D9A] text-white shadow-lg hover:bg-[#3a4285] transition-all hover:scale-105 group"
+        aria-label="Report a bug"
       >
-        <Bug className="h-3 w-3" />
+        <Bug className="h-5 w-5" />
         <span className="absolute bottom-full right-0 mb-2 hidden rounded-lg bg-zinc-900 px-3 py-1.5 text-xs text-white whitespace-nowrap group-hover:block">
           Report a Bug
         </span>
@@ -200,7 +218,7 @@ export function BugReportWidget({ appSource }: BugReportWidgetProps) {
                 <Bug className="h-5 w-5 text-[#454D9A]" />
                 <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Report a Bug</h2>
               </div>
-              <button onClick={handleClose} className="rounded-lg p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+              <button onClick={handleClose} aria-label="Close bug report" className="rounded-lg p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
                 <X className="h-5 w-5 text-zinc-500" />
               </button>
             </div>
