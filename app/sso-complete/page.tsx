@@ -26,7 +26,7 @@ function SSOCompleteContent() {
 
   useEffect(() => {
     const token = searchParams.get('token');
-    const redirect = searchParams.get('redirect') || '/profile';
+    const redirect = searchParams.get('redirect') || '/';
 
     if (!token) {
       setStatus('error');

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Check if oauth_redirect cookie already exists (set by intermediate page)
     // This is the preferred path - the intermediate page sets the cookie via a non-redirect response
     const existingRedirectCookie = request.cookies.get('oauth_redirect')?.value;
-    const redirectParam = request.nextUrl.searchParams.get('redirect') || '/profile';
+    const redirectParam = request.nextUrl.searchParams.get('redirect') || '/';
 
     // Use existing cookie if set, otherwise use URL param
     const redirect = existingRedirectCookie

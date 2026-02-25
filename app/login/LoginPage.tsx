@@ -84,8 +84,8 @@ function LoginForm() {
         return;
       }
 
-      // Success - redirect to specified URL or default to profile
-      const redirectUrl = searchParams.get('redirect') || '/profile';
+      // Success - redirect to specified URL or default to dashboard
+      const redirectUrl = searchParams.get('redirect') || '/';
 
       // Check if redirect is to another BFEAI subdomain (cross-domain SSO)
       const isCrossDomainRedirect = redirectUrl.startsWith('https://') &&
@@ -324,7 +324,7 @@ function LoginForm() {
                 variant="outline"
                 disabled={isLoading}
                 onClick={() => {
-                  const redirect = searchParams.get('redirect') || '/profile';
+                  const redirect = searchParams.get('redirect') || '/';
                   window.location.href = `/oauth-start?provider=google&redirect=${encodeURIComponent(redirect)}`;
                 }}
                 className="btn-press h-11 gap-2 border-border text-foreground
@@ -345,7 +345,7 @@ function LoginForm() {
                 variant="outline"
                 disabled={isLoading}
                 onClick={() => {
-                  const redirect = searchParams.get('redirect') || '/profile';
+                  const redirect = searchParams.get('redirect') || '/';
                   window.location.href = `/oauth-start?provider=github&redirect=${encodeURIComponent(redirect)}`;
                 }}
                 className="btn-press h-11 gap-2 border-border text-foreground

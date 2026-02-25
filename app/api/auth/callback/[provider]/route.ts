@@ -50,7 +50,7 @@ export async function GET(
     // Get redirect from cookie (set by OAuth initiation) - this avoids URL encoding issues
     const redirectCookie = request.cookies.get('oauth_redirect')?.value;
     // Decode the cookie value since it was URL-encoded when set
-    const redirect = redirectCookie ? decodeURIComponent(redirectCookie) : '/profile';
+    const redirect = redirectCookie ? decodeURIComponent(redirectCookie) : '/';
 
     // Debug logging for OAuth callback
     console.log('[OAuth Callback] Request received:', {

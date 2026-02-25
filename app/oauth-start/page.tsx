@@ -23,7 +23,7 @@ function OAuthStartContent() {
 
   useEffect(() => {
     const provider = searchParams.get('provider');
-    const redirect = searchParams.get('redirect') || '/profile';
+    const redirect = searchParams.get('redirect') || '/';
 
     if (!provider || (provider !== 'google' && provider !== 'github')) {
       setStatus('error');
