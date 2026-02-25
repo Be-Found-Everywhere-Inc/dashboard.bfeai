@@ -92,7 +92,7 @@ export const CreditBalanceCard = ({
         </div>
 
         {/* Pool breakdown — visual cards */}
-        <div className={`grid gap-3 ${balance.trialBalance > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
+        <div className={`grid gap-3 ${balance.trialBalance > 0 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
           {balance.trialBalance > 0 && (
             <TooltipProvider>
               <Tooltip>
@@ -182,7 +182,7 @@ export const CreditBalanceCard = ({
       </CardContent>
 
       {onViewCredits && (
-        <CardFooter className="relative flex gap-2">
+        <CardFooter className="relative flex flex-col sm:flex-row gap-2">
           <Button
             size="sm"
             className="flex-1 gap-2 btn-press"

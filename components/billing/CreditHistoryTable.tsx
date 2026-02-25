@@ -106,15 +106,15 @@ export const CreditHistoryTable = ({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-border">
-        <Table>
+      <div className="rounded-xl border border-border overflow-x-auto">
+        <Table className="min-w-[540px]">
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead>Description</TableHead>
+              <TableHead className="hidden sm:table-cell">Description</TableHead>
               <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
+              <TableHead className="text-right hidden sm:table-cell">Balance</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -130,7 +130,7 @@ export const CreditHistoryTable = ({
                       {TYPE_LABELS[txn.type] ?? txn.type}
                     </span>
                   </TableCell>
-                  <TableCell className="max-w-[280px] truncate text-sm text-muted-foreground">
+                  <TableCell className="max-w-[280px] truncate text-sm text-muted-foreground hidden sm:table-cell">
                     {friendlyDescription(txn.description, txn.app_key)}
                   </TableCell>
                   <TableCell className="text-right">
@@ -148,7 +148,7 @@ export const CreditHistoryTable = ({
                       {txn.amount.toLocaleString()}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right text-sm font-medium text-foreground">
+                  <TableCell className="text-right text-sm font-medium text-foreground hidden sm:table-cell">
                     {txn.balance_after.toLocaleString()}
                   </TableCell>
                 </TableRow>
@@ -160,7 +160,7 @@ export const CreditHistoryTable = ({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
             Showing {page * pageSize + 1}-{Math.min((page + 1) * pageSize, total)} of{" "}
             {total.toLocaleString()} transactions
