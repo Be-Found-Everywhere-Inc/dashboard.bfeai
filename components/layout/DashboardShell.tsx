@@ -71,8 +71,15 @@ function DashboardContent({
             <Menu className="h-5 w-5" />
             <span className="sr-only">Toggle sidebar</span>
           </SidebarTrigger>
-          <Link href="/" className="flex items-center">
-            <img src="/brand/BFE-DBA.png" alt="BFEAI - Be Found Everywhere" className="h-8 w-auto" />
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/brand/BFE_Icon_TRN.png" alt="BFEAI" className="h-8 w-8 rounded-lg" />
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-baseline gap-1">
+                <span className="text-sm font-extrabold tracking-tight text-foreground">BFEAI</span>
+                <span className="text-[10px] font-medium text-muted-foreground">{"\u201C"}BEEFY{"\u201D"}</span>
+              </div>
+              <span className="text-[8px] font-semibold tracking-[0.08em] uppercase text-muted-foreground">Be Found Everywhere</span>
+            </div>
           </Link>
         </header>
 

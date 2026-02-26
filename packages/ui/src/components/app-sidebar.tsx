@@ -167,20 +167,19 @@ export function AppSidebar({
 
       {/* ---- Header ---- */}
       <SidebarHeader className={cn("p-4", isCollapsed && "p-2 items-center")}>
-        <a href={dashHref} className={cn("flex items-center", isCollapsed && "justify-center")}>
-          {isCollapsed ? (
-            <img
-              src="/brand/BFE_Icon_TRN.png"
-              alt="BFEAI"
-              className="h-8 w-8 rounded-lg shrink-0"
-            />
-          ) : (
-            <img
-              src="/brand/BFE-DBA.png"
-              alt="BFEAI - Be Found Everywhere"
-              className="h-12 w-auto shrink-0"
-            />
-          )}
+        <a href={dashHref} className={cn("flex items-center gap-2.5", isCollapsed && "justify-center")}>
+          <img
+            src="/brand/BFE_Icon_TRN.png"
+            alt="BFEAI"
+            className={cn("rounded-lg shrink-0", isCollapsed ? "h-8 w-8" : "h-10 w-10")}
+          />
+          <div className={cn("flex flex-col min-w-0", isCollapsed && "hidden")}>
+            <div className="flex items-baseline gap-1">
+              <span className="text-base font-extrabold tracking-tight text-foreground">BFEAI</span>
+              <span className="text-[11px] font-medium text-muted-foreground">{"\u201C"}BEEFY{"\u201D"}</span>
+            </div>
+            <span className="text-[9px] font-semibold tracking-[0.08em] uppercase text-muted-foreground">Be Found Everywhere</span>
+          </div>
         </a>
       </SidebarHeader>
 
