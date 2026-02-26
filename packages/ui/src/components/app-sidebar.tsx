@@ -97,11 +97,11 @@ function getInitials(name?: string): string {
 }
 
 /** Use Next.js Link for internal paths (/...), plain <a> for external URLs. */
-function NavLink({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
+function NavLink({ href, children, className, ...rest }: { href: string; children: React.ReactNode; className?: string } & React.AnchorHTMLAttributes<HTMLAnchorElement>) {
   if (href.startsWith("/")) {
-    return <Link href={href} className={className}>{children}</Link>;
+    return <Link href={href} className={className} {...rest}>{children}</Link>;
   }
-  return <a href={href} className={className}>{children}</a>;
+  return <a href={href} className={className} {...rest}>{children}</a>;
 }
 
 // ---------------------------------------------------------------------------
