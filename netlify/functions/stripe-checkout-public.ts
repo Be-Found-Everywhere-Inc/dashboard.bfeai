@@ -221,8 +221,8 @@ export const handler: Handler = async (event) => {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: successUrl,
       cancel_url: cancelUrl,
-      metadata: { type: "subscription", app_key: appKey, flow: "unauthenticated" },
-      subscription_data: { metadata: { app_key: appKey } },
+      metadata: { type: "subscription", app_key: appKey!, flow: "unauthenticated" },
+      subscription_data: { metadata: { app_key: appKey! } },
     });
 
     return withCors(jsonResponse(200, { url: session.url }), cors);
