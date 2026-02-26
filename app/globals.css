@@ -164,6 +164,12 @@
   --shadow-accent: 0 4px 14px 0 rgba(69, 77, 154, 0.25);
 }
 
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
+
 /* Premium Font Loading */
 @layer base {
   /* Modern, professional font stack */

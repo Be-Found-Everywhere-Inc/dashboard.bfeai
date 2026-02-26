@@ -167,20 +167,20 @@ export function AppSidebar({
 
       {/* ---- Header ---- */}
       <SidebarHeader className={cn("p-4", isCollapsed && "p-2 items-center")}>
-        <a href={dashHref} className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
-          <img
-            src="/brand/BFE_Icon_TRN.png"
-            alt="BFEAI"
-            className={cn("rounded-lg shrink-0", isCollapsed ? "h-8 w-8" : "h-10 w-10")}
-          />
-          <span
-            className={cn(
-              "text-lg font-bold tracking-tight",
-              isCollapsed && "hidden",
-            )}
-          >
-            BFEAI
-          </span>
+        <a href={dashHref} className={cn("flex items-center", isCollapsed && "justify-center")}>
+          {isCollapsed ? (
+            <img
+              src="/brand/BFE_Icon_TRN.png"
+              alt="BFEAI"
+              className="h-8 w-8 rounded-lg shrink-0"
+            />
+          ) : (
+            <img
+              src="/brand/BFE-DBA.png"
+              alt="BFEAI - Be Found Everywhere"
+              className="h-12 w-auto shrink-0"
+            />
+          )}
         </a>
       </SidebarHeader>
 
