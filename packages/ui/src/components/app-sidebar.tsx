@@ -31,6 +31,7 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "./sidebar";
+import { Tooltip, TooltipTrigger, TooltipContent } from "./tooltip";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -230,32 +231,44 @@ export function AppSidebar({
 
               {/* Keyword Agent */}
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isKeywords}
-                  tooltip={{ children: "Discover the absolute best keywords to rank for.", alwaysVisible: true }}
-                  className={isKeywords ? activeClass : undefined}
-                >
-                  <NavLink href={kwHref}>
-                    <Search />
-                    <span>Keyword Agent</span>
-                  </NavLink>
-                </SidebarMenuButton>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isKeywords}
+                      className={isKeywords ? activeClass : undefined}
+                    >
+                      <NavLink href={kwHref}>
+                        <Search />
+                        <span>Keyword Agent</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" align="center">
+                    Discover the absolute best keywords to rank for.
+                  </TooltipContent>
+                </Tooltip>
               </SidebarMenuItem>
 
               {/* LABS */}
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isLabs}
-                  tooltip={{ children: "Improve Your AI Visibility in Less than 60 seconds.", alwaysVisible: true }}
-                  className={isLabs ? activeClass : undefined}
-                >
-                  <NavLink href={labsHref}>
-                    <FlaskConical />
-                    <span>LABS</span>
-                  </NavLink>
-                </SidebarMenuButton>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isLabs}
+                      className={isLabs ? activeClass : undefined}
+                    >
+                      <NavLink href={labsHref}>
+                        <FlaskConical />
+                        <span>LABS</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" align="center">
+                    Improve Your AI Visibility in Less than 60 seconds.
+                  </TooltipContent>
+                </Tooltip>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
