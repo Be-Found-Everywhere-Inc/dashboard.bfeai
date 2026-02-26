@@ -198,10 +198,10 @@ export function BugReportWidget({ appSource }: BugReportWidgetProps) {
       {/* Floating Button */}
       <button
         onClick={handleOpen}
-        className="bug-report-widget fixed bottom-6 right-6 z-50 flex h-11 w-11 items-center justify-center rounded-full bg-[#454D9A] text-white shadow-lg hover:bg-[#3a4285] transition-all hover:scale-105 group"
+        className="bug-report-widget fixed bottom-3 right-3 z-50 flex h-6 w-6 items-center justify-center rounded-full bg-[#454D9A] text-white shadow-lg hover:bg-[#3a4285] transition-all hover:scale-105 group"
         aria-label="Report a bug"
       >
-        <Bug className="h-5 w-5" />
+        <Bug className="h-3 w-3" />
         <span className="absolute bottom-full right-0 mb-2 hidden rounded-lg bg-zinc-900 px-3 py-1.5 text-xs text-white whitespace-nowrap group-hover:block">
           Report a Bug
         </span>
