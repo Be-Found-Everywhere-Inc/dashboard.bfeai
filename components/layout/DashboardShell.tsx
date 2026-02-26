@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { Menu } from 'lucide-react';
 
 import {
@@ -71,7 +70,7 @@ function DashboardContent({
             <Menu className="h-5 w-5" />
             <span className="sr-only">Toggle sidebar</span>
           </SidebarTrigger>
-          <Link href="/" className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <img src="/brand/BFE_Icon_TRN.png" alt="BFEAI" className="h-8 w-8 rounded-lg" />
             <div className="flex flex-col min-w-0">
               <div className="flex items-baseline gap-1">
@@ -80,7 +79,7 @@ function DashboardContent({
               </div>
               <span className="text-[8px] font-semibold tracking-[0.08em] uppercase text-muted-foreground">Be Found Everywhere</span>
             </div>
-          </Link>
+          </div>
         </header>
 
         {/* Page Content */}

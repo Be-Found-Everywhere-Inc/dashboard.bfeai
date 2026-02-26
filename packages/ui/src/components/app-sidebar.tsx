@@ -167,7 +167,7 @@ export function AppSidebar({
 
       {/* ---- Header ---- */}
       <SidebarHeader className={cn("p-4", isCollapsed && "p-2 items-center")}>
-        <a href={dashHref} className={cn("flex items-center gap-2.5", isCollapsed && "justify-center")}>
+        <div className={cn("flex items-center gap-2.5", isCollapsed && "justify-center")}>
           <img
             src="/brand/BFE_Icon_TRN.png"
             alt="BFEAI"
@@ -180,7 +180,7 @@ export function AppSidebar({
             </div>
             <span className="text-[9px] font-semibold tracking-[0.08em] uppercase text-muted-foreground">Be Found Everywhere</span>
           </div>
-        </a>
+        </div>
       </SidebarHeader>
 
       {/* ---- Navigation ---- */}
