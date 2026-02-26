@@ -442,7 +442,7 @@ const SidebarMenuButton = React.forwardRef<
   React.ComponentProps<"button"> & {
     asChild?: boolean;
     isActive?: boolean;
-    tooltip?: string | React.ComponentProps<typeof TooltipContent>;
+    tooltip?: string | (React.ComponentProps<typeof TooltipContent> & { alwaysVisible?: boolean });
   } & VariantProps<typeof sidebarMenuButtonVariants>
 >(({ asChild = false, isActive = false, variant = "default", size = "default", tooltip, className, ...props }, ref) => {
   const Comp = asChild ? Slot : "button";
@@ -469,10 +469,12 @@ const SidebarMenuButton = React.forwardRef<
     };
   }
 
+  const { alwaysVisible, ...tooltipProps } = tooltip;
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="right" align="center" hidden={state !== "collapsed" || isMobile} {...tooltip} />
+      <TooltipContent side="right" align="center" hidden={alwaysVisible ? false : (state !== "collapsed" || isMobile)} {...tooltipProps} />
     </Tooltip>
   );
 });
