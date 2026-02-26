@@ -233,7 +233,7 @@ export function AppSidebar({
                 <SidebarMenuButton
                   asChild
                   isActive={isKeywords}
-                  tooltip="Discover the absolute best keywords to rank for."
+                  tooltip={{ children: "Discover the absolute best keywords to rank for.", hidden: false }}
                   className={isKeywords ? activeClass : undefined}
                 >
                   <NavLink href={kwHref}>
@@ -248,7 +248,7 @@ export function AppSidebar({
                 <SidebarMenuButton
                   asChild
                   isActive={isLabs}
-                  tooltip="Improve Your AI Visibility in Less than 60 seconds."
+                  tooltip={{ children: "Improve Your AI Visibility in Less than 60 seconds.", hidden: false }}
                   className={isLabs ? activeClass : undefined}
                 >
                   <NavLink href={labsHref}>
