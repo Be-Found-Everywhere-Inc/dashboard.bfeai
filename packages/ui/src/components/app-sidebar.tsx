@@ -13,6 +13,7 @@ import {
   Settings,
   Sparkles,
 } from "lucide-react";
+import Link from "next/link";
 
 import { cn } from "../lib/utils";
 import { Button } from "./button";
@@ -94,6 +95,14 @@ function getInitials(name?: string): string {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
+/** Use Next.js Link for internal paths (/...), plain <a> for external URLs. */
+function NavLink({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
+  if (href.startsWith("/")) {
+    return <Link href={href} className={className}>{children}</Link>;
+  }
+  return <a href={href} className={className}>{children}</a>;
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -161,7 +170,7 @@ export function AppSidebar({
   const activeClass = "bg-brand-indigo text-white hover:bg-brand-indigo/90 hover:text-white data-[active=true]:bg-brand-indigo data-[active=true]:text-white";
 
   return (
-    <Sidebar collapsible="icon" className="border-r">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       {/* Collapse toggle */}
       <CollapseToggle />
 
@@ -197,10 +206,10 @@ export function AppSidebar({
                   tooltip="Dashboard"
                   className={isDashboardHome ? activeClass : undefined}
                 >
-                  <a href={dashHref}>
+                  <NavLink href={dashHref}>
                     <LayoutDashboard />
                     <span>Dashboard</span>
-                  </a>
+                  </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -212,10 +221,10 @@ export function AppSidebar({
                   tooltip="Explore Apps"
                   className={isExploreApps ? activeClass : undefined}
                 >
-                  <a href={exploreHref}>
+                  <NavLink href={exploreHref}>
                     <Sparkles />
                     <span>Explore Apps</span>
-                  </a>
+                  </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -227,10 +236,10 @@ export function AppSidebar({
                   tooltip="Discover the absolute best keywords to rank for."
                   className={isKeywords ? activeClass : undefined}
                 >
-                  <a href={kwHref}>
+                  <NavLink href={kwHref}>
                     <Search />
                     <span>Keyword Agent</span>
-                  </a>
+                  </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -242,10 +251,10 @@ export function AppSidebar({
                   tooltip="Improve Your AI Visibility in Less than 60 seconds."
                   className={isLabs ? activeClass : undefined}
                 >
-                  <a href={labsHref}>
+                  <NavLink href={labsHref}>
                     <FlaskConical />
                     <span>LABS</span>
-                  </a>
+                  </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -261,7 +270,7 @@ export function AppSidebar({
           {user && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild size="lg" tooltip={user.fullName ?? user.email} isActive={isProfile} className={isProfile ? activeClass : undefined}>
-                <a href={profileHref} className="flex items-center gap-2">
+                <NavLink href={profileHref} className="flex items-center gap-2">
                   {user.avatarUrl ? (
                     <img
                       src={user.avatarUrl}
@@ -279,7 +288,7 @@ export function AppSidebar({
                     )}
                     <span className={cn("truncate text-xs", isProfile ? "text-white/80" : "text-muted-foreground")}>{user.email}</span>
                   </span>
-                </a>
+                </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
@@ -288,13 +297,13 @@ export function AppSidebar({
           {credits !== null && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip={`${credits.total} credits`} isActive={isCredits} className={isCredits ? activeClass : undefined}>
-                <a href={creditsHref}>
+                <NavLink href={creditsHref}>
                   <Coins className={isCredits ? "text-white" : "text-amber-500"} />
                   <span className={cn(isCollapsed && "hidden")}>
                     <span className="font-semibold">{credits.total}</span>{" "}
                     <span className={cn("text-xs", isCredits ? "text-white/80" : "text-muted-foreground")}>credits</span>
                   </span>
-                </a>
+                </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
@@ -302,20 +311,20 @@ export function AppSidebar({
           {/* Manage Payments */}
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="Manage Payments">
-              <a href={billingHref}>
+              <NavLink href={billingHref}>
                 <CreditCard />
                 <span className={cn(isCollapsed && "hidden")}>Manage Payments</span>
-              </a>
+              </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
 
           {/* Settings */}
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="Settings" isActive={isSettings} className={isSettings ? activeClass : undefined}>
-              <a href={settingsHref}>
+              <NavLink href={settingsHref}>
                 <Settings />
                 <span className={cn(isCollapsed && "hidden")}>Settings</span>
-              </a>
+              </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
 
