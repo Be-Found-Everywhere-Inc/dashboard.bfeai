@@ -224,7 +224,7 @@ export function AppSidebar({
                 <SidebarMenuButton
                   asChild
                   isActive={isKeywords}
-                  tooltip="Keyword Agent"
+                  tooltip="Discover the absolute best keywords to rank for."
                   className={isKeywords ? activeClass : undefined}
                 >
                   <a href={kwHref}>
@@ -239,7 +239,7 @@ export function AppSidebar({
                 <SidebarMenuButton
                   asChild
                   isActive={isLabs}
-                  tooltip="LABS"
+                  tooltip="Improve Your AI Visibility in Less than 60 seconds."
                   className={isLabs ? activeClass : undefined}
                 >
                   <a href={labsHref}>
