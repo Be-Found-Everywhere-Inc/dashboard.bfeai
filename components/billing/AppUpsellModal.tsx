@@ -5,7 +5,7 @@ import { useTheme } from "next-themes";
 import Image from "next/image";
 import {
   Search,
-  Eye,
+  FlaskConical,
   Sparkles,
   Wand2,
   BarChart3,
@@ -193,7 +193,7 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Search,
-  Eye,
+  FlaskConical,
 };
 
 // Per-slide visual variants — same app colors, different compositions

@@ -7,7 +7,7 @@ import {
   ArrowUpRight,
   Check,
   Search,
-  Eye,
+  FlaskConical,
   ExternalLink,
   Zap,
 } from "lucide-react";
@@ -19,7 +19,7 @@ import { toast } from "@bfeai/ui";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Search,
-  Eye,
+  FlaskConical,
 };
 
 export function AppsPage() {
@@ -185,7 +185,7 @@ export function AppsPage() {
                   <Search className="h-5 w-5" />
                 </div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-teal to-brand-indigo text-white shadow-lg ring-2 ring-background">
-                  <Eye className="h-5 w-5" />
+                  <FlaskConical className="h-5 w-5" />
                 </div>
               </div>
               <div>
@@ -219,7 +219,7 @@ export function AppsPage() {
                   <Search className="h-5 w-5" />
                 </div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-teal to-brand-indigo text-white shadow-lg ring-2 ring-background">
-                  <Eye className="h-5 w-5" />
+                  <FlaskConical className="h-5 w-5" />
                 </div>
               </div>
               <div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Search, Eye, ArrowUpRight, ExternalLink, CreditCard, Coins, Sparkles, Zap, Activity, Megaphone } from "lucide-react";
+import { Search, FlaskConical, ArrowUpRight, ExternalLink, CreditCard, Coins, Sparkles, Zap, Activity, Megaphone } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button } from "@bfeai/ui";
 import { useBilling } from "@/hooks/useBilling";
 import { APP_CATALOG, type AppKey } from "@/config/apps";
@@ -14,7 +14,7 @@ import { format } from "date-fns";
 
 const APP_ICONS: Record<string, React.ElementType> = {
   keywords: Search,
-  labs: Eye,
+  labs: FlaskConical,
 };
 
 function getGreeting(): string {
@@ -338,7 +338,7 @@ export function DashboardPage() {
                   <Search className="h-5 w-5" />
                 </div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-teal to-brand-indigo text-white shadow-lg ring-2 ring-background">
-                  <Eye className="h-5 w-5" />
+                  <FlaskConical className="h-5 w-5" />
                 </div>
               </div>
               <div>
@@ -431,7 +431,7 @@ export function DashboardPage() {
             className="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-all hover:border-brand-teal/40 hover:shadow-md card-hover-lift"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-teal to-brand-indigo text-white shadow">
-              <Eye className="h-5 w-5" />
+              <FlaskConical className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground group-hover:text-brand-teal transition-colors">LABS</p>

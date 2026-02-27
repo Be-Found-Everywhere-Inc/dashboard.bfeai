@@ -58,7 +58,7 @@ export const APP_CATALOG: Record<AppKey, AppConfig> = {
     shortName: 'LABS',
     description: 'Track brand visibility across AI answer engines',
     longDescription: 'Monitor how AI surfaces your brand across ChatGPT, Gemini, Perplexity, Claude, Google AI Overview, and AI Mode. Get sentiment analysis, confidence scores, and actionable diagnosis for invisibility.',
-    icon: 'Eye',
+    icon: 'FlaskConical',
     gradient: 'from-brand-teal to-brand-indigo',
     url: 'https://labs.bfeai.com',
     features: [
