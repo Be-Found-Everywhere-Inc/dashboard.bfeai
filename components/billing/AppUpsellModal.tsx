@@ -41,9 +41,16 @@ type SellingPoint = {
   description: string;
 };
 
+type SlideData = {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  detail: string;
+};
+
 type AppUpsellData = {
   sellingPoints: SellingPoint[];
-  screenshots: string[];
+  slides: SlideData[];
 };
 
 const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
@@ -70,11 +77,31 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Download full keyword reports as CSV for clients or team sharing.",
       },
     ],
-    screenshots: [
-      "/images/upsell/keywords-1.png",
-      "/images/upsell/keywords-2.png",
-      "/images/upsell/keywords-3.png",
-      "/images/upsell/keywords-4.png",
+    slides: [
+      {
+        icon: Wand2,
+        title: "AI Keyword Wizard",
+        description: "Enter a seed keyword or URL and let AI expand it into hundreds of high-value opportunities.",
+        detail: "Powered by GPT-4o + DataForSEO",
+      },
+      {
+        icon: BarChart3,
+        title: "Competitive Metrics",
+        description: "Get search volume, CPC, keyword difficulty, and conversion rate predictions for every keyword.",
+        detail: "Real-time data from DataForSEO",
+      },
+      {
+        icon: Star,
+        title: "Best Keywords Score",
+        description: "Our proprietary algorithm ranks keywords by actual revenue potential — not just volume.",
+        detail: "Exclusive to BFEAI",
+      },
+      {
+        icon: FileDown,
+        title: "Export & Share",
+        description: "Download full keyword reports as CSV. Share with clients or team members instantly.",
+        detail: "One-click CSV export",
+      },
     ],
   },
   labs: {
@@ -100,11 +127,31 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Automate recurring scans to track visibility trends over time.",
       },
     ],
-    screenshots: [
-      "/images/upsell/labs-1.png",
-      "/images/upsell/labs-2.png",
-      "/images/upsell/labs-3.png",
-      "/images/upsell/labs-4.png",
+    slides: [
+      {
+        icon: Radar,
+        title: "6 AI Engines",
+        description: "Monitor your brand across ChatGPT, Gemini, Perplexity, Claude, Google AI Overview, and AI Mode.",
+        detail: "Full AI landscape coverage",
+      },
+      {
+        icon: MessageSquareHeart,
+        title: "Sentiment Analysis",
+        description: "Understand how AI talks about your brand — positive, neutral, or negative tone detection.",
+        detail: "Powered by NLP analysis",
+      },
+      {
+        icon: Users,
+        title: "Competitor Tracking",
+        description: "See which competitors appear alongside your brand in AI-generated answers.",
+        detail: "Side-by-side comparison",
+      },
+      {
+        icon: CalendarClock,
+        title: "Scheduled Scans",
+        description: "Automate recurring scans to track visibility trends and catch changes over time.",
+        detail: "Set it and forget it",
+      },
     ],
   },
 };
@@ -172,28 +219,29 @@ export function AppUpsellModal({
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
         <DialogTitle className="sr-only">{app.name} details</DialogTitle>
 
-        {/* Image carousel */}
+        {/* Feature highlight carousel */}
         <div className="relative">
           <Carousel setApi={setApi} opts={{ loop: true }} className="w-full">
             <CarouselContent>
-              {upsell.screenshots.map((src, i) => (
+              {upsell.slides.map((slide, i) => (
                 <CarouselItem key={i}>
                   <div className={`relative aspect-[16/9] bg-gradient-to-br ${app.gradient} overflow-hidden`}>
-                    <img
-                      src={src}
-                      alt={`${app.name} screenshot ${i + 1}`}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        // Fallback: hide broken image, show gradient bg
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                    {/* Gradient placeholder overlay (visible when image fails) */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="text-center text-white/60">
-                        <IconComponent className="mx-auto h-12 w-12 mb-2 opacity-40" />
-                        <p className="text-sm font-medium opacity-60">Screenshot {i + 1}</p>
+                    {/* Decorative background elements */}
+                    <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+                    <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-white/8 blur-xl" />
+                    <div className="absolute top-6 right-8 h-16 w-16 rounded-2xl border border-white/10 rotate-12" />
+                    <div className="absolute bottom-10 right-20 h-10 w-10 rounded-xl border border-white/8 -rotate-6" />
+
+                    {/* Slide content */}
+                    <div className="relative flex h-full flex-col items-center justify-center px-8 text-center text-white">
+                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm shadow-lg ring-1 ring-white/20">
+                        <slide.icon className="h-8 w-8" />
                       </div>
+                      <h4 className="text-xl font-heading font-bold mb-2">{slide.title}</h4>
+                      <p className="max-w-md text-sm text-white/80 leading-relaxed">{slide.description}</p>
+                      <span className="mt-3 inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm">
+                        {slide.detail}
+                      </span>
                     </div>
                   </div>
                 </CarouselItem>
