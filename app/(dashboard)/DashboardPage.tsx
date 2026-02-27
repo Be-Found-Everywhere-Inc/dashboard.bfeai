@@ -186,7 +186,7 @@ export function DashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Welcome to BFEAI! We&apos;re actively building new features. Stay tuned for updates on new AI engines, integrations, and tools.
+            Welcome to Be Found Everywhere, or BEEFY! We&apos;re actively building new features to help you Be Found Everywhere! Stay tuned for updates, new apps, integrations, and more!
           </p>
         </CardContent>
       </Card>
@@ -307,6 +307,39 @@ export function DashboardPage() {
           );
         })}
       </div>
+
+      {/* Bundle CTA — show when user doesn't have both apps */}
+      {activeAppCount < 2 && (
+        <div className="mt-6 animate-fade-in-up rounded-2xl border border-brand-indigo/20 bg-gradient-to-r from-brand-indigo/8 via-brand-purple/6 to-brand-teal/8 p-5 md:p-6" style={{ animationDelay: '300ms' }}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex -space-x-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-indigo to-brand-purple text-white shadow-lg ring-2 ring-background">
+                  <Search className="h-5 w-5" />
+                </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-teal to-brand-indigo text-white shadow-lg ring-2 ring-background">
+                  <Eye className="h-5 w-5" />
+                </div>
+              </div>
+              <div>
+                <p className="font-heading font-bold text-foreground">
+                  Get Both Apps for $49/mo
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Keyword Agent + LABS — 600 credits monthly, $9/mo bundle savings
+                </p>
+              </div>
+            </div>
+            <Button
+              className="gap-2 btn-press shrink-0"
+              onClick={() => router.push('/apps')}
+            >
+              Explore Apps
+              <ArrowUpRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Credits + Recent payments */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
