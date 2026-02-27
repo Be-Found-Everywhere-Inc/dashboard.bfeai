@@ -13,8 +13,11 @@ import { Suspense } from 'react';
  *
  * Flow:
  * 1. User clicks OAuth button → redirected here with provider & redirect params
- * 2. This page calls /api/auth/set-oauth-redirect to set the cookie
- * 3. Then redirects to /api/auth/oauth to start the actual OAuth flow
+ * 2. This page calls /api/auth/set-oauth-redirect to set the oauth_redirect cookie
+ * 3. Then calls /api/auth/oauth-init (JSON, not redirect) to get the provider URL
+ *    and set Supabase PKCE cookies on a non-redirect response (Netlify strips
+ *    Set-Cookie headers from redirect responses, breaking exchangeCodeForSession)
+ * 4. Then navigates to the provider URL with PKCE cookies already in place
  */
 function OAuthStartContent() {
   const searchParams = useSearchParams();
@@ -53,12 +56,21 @@ function OAuthStartContent() {
       })
       .then(() => {
         setStatus('redirecting');
-        // Small delay to ensure cookie is set, then redirect to OAuth
-        setTimeout(() => {
-          // Now redirect to the OAuth endpoint - it doesn't need the redirect param
-          // because the cookie is already set
-          window.location.href = `/api/auth/oauth?provider=${provider}`;
-        }, 100);
+        // Fetch the OAuth URL as JSON so that Netlify doesn't strip the PKCE
+        // Set-Cookie headers (Netlify strips cookies from redirect responses).
+        return fetch(`/api/auth/oauth-init?provider=${provider}`, {
+          credentials: 'include',
+        });
+      })
+      .then(response => {
+        if (!response || !response.ok) {
+          throw new Error('Failed to initiate OAuth');
+        }
+        return response.json();
+      })
+      .then(({ url }: { url: string }) => {
+        // PKCE cookies are now set via the JSON response — navigate to provider
+        window.location.href = url;
       })
       .catch(error => {
         console.error('OAuth start error:', error);
