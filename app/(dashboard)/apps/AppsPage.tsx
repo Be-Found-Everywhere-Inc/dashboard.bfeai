@@ -253,12 +253,17 @@ export function AppsPage() {
           return (
             <Card
               key={app.key}
-              className={`animate-fade-in-up card-hover-lift relative overflow-hidden border transition ${
+              className={`animate-fade-in-up card-hover-lift relative overflow-hidden border transition cursor-pointer ${
                 status === 'subscribed' || status === 'trialing'
                   ? 'border-brand-indigo/25 shadow-sm'
                   : 'border-border'
               }`}
               style={{ animationDelay: `${(i + 1) * 100 + 200}ms` }}
+              onClick={(e) => {
+                // Don't open modal if clicking a button or link
+                if ((e.target as HTMLElement).closest('button, a')) return;
+                setSelectedApp(app.key);
+              }}
             >
               <div
                 className={`absolute inset-0 bg-gradient-to-br ${app.gradient} opacity-[0.06]`}
@@ -355,6 +360,13 @@ export function AppsPage() {
                           onClick={() => void handleStartTrial(app.key)}
                         >
                           {trialCheckoutLoading ? "Redirecting..." : "Try for $1 — 7 days"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="text-muted-foreground hover:text-foreground btn-press"
+                          onClick={() => setSelectedApp(app.key)}
+                        >
+                          Learn More
                         </Button>
                       </>
                     )}

@@ -216,12 +216,17 @@ export function DashboardPage() {
           return (
             <Card
               key={appKey}
-              className={`animate-fade-in-up card-hover-lift relative overflow-hidden ${
+              className={`animate-fade-in-up card-hover-lift relative overflow-hidden cursor-pointer ${
                 status !== 'none'
                   ? 'border-brand-indigo/20 shadow-sm'
                   : 'border-border'
               }`}
               style={{ animationDelay: `${(i + 1) * 100 + 100}ms` }}
+              onClick={(e) => {
+                // Don't open modal if clicking a button or link
+                if ((e.target as HTMLElement).closest('button, a')) return;
+                setUpsellApp(appKey);
+              }}
             >
               <div
                 className={`absolute inset-0 bg-gradient-to-br ${app.gradient} opacity-[0.04]`}
