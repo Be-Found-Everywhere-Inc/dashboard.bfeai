@@ -23,11 +23,10 @@ export async function GET(request: NextRequest) {
     const payload = JWTService.verifySSOToken(sessionCookie.value);
     const userId = payload.userId;
 
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
+    const adminSupabase = createAdminClient();
 
-    // Fetch profile data
-    const { data: profile, error } = await supabase
+    // Fetch profile data (use admin client since auth is via custom JWT, not Supabase session)
+    const { data: profile, error } = await adminSupabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
@@ -35,7 +34,6 @@ export async function GET(request: NextRequest) {
 
     if (error || !profile) {
       // Profile row doesn't exist yet - auto-create from JWT data
-      const adminSupabase = createAdminClient();
       const { data: newProfile, error: upsertError } = await adminSupabase
         .from('profiles')
         .upsert(
