@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Search, Eye, ArrowUpRight, ExternalLink, CreditCard, Coins, Sparkles, Zap, Activity } from "lucide-react";
+import { Search, Eye, ArrowUpRight, ExternalLink, CreditCard, Coins, Sparkles, Zap, Activity, Megaphone } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button } from "@bfeai/ui";
 import { useBilling } from "@/hooks/useBilling";
-import { APP_CATALOG } from "@/config/apps";
+import { APP_CATALOG, type AppKey } from "@/config/apps";
 import { CreditBalanceCard } from "@/components/billing/CreditBalanceCard";
 import { CancellationDialog } from "@/components/billing/CancellationDialog";
+import { AppUpsellModal } from "@/components/billing/AppUpsellModal";
 import { toast } from "@bfeai/ui";
 import { format } from "date-fns";
 
@@ -41,6 +42,7 @@ export function DashboardPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [cancellationDialogOpen, setCancellationDialogOpen] = useState(false);
+  const [upsellApp, setUpsellApp] = useState<AppKey | null>(null);
   const [userName, setUserName] = useState<string>('');
 
   // Fetch user name for greeting
@@ -174,6 +176,21 @@ export function DashboardPage() {
         </div>
       </div>
 
+      {/* Announcements */}
+      <Card className="animate-fade-in-up mb-6 border-brand-indigo/10 bg-gradient-to-r from-brand-indigo/5 via-background to-brand-purple/5" style={{ animationDelay: '100ms' }}>
+        <CardHeader className="flex flex-row items-center gap-3 pb-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-indigo/10 text-brand-indigo">
+            <Megaphone className="h-5 w-5" />
+          </div>
+          <CardTitle className="text-base font-heading">Announcements</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Welcome to BFEAI! We&apos;re actively building new features. Stay tuned for updates on new AI engines, integrations, and tools.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* App Subscriptions */}
       <div className="grid gap-6 lg:grid-cols-2">
         {(['keywords', 'labs'] as const).map((appKey, i) => {
@@ -189,7 +206,7 @@ export function DashboardPage() {
                   ? 'border-brand-indigo/20 shadow-sm'
                   : 'border-border'
               }`}
-              style={{ animationDelay: `${(i + 1) * 100}ms` }}
+              style={{ animationDelay: `${(i + 1) * 100 + 100}ms` }}
             >
               <div
                 className={`absolute inset-0 bg-gradient-to-br ${app.gradient} opacity-[0.04]`}
@@ -220,14 +237,6 @@ export function DashboardPage() {
                     const appSub = getSubscription(appKey);
                     return (
                     <div className="space-y-3">
-                      {appSub && (
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-2xl font-semibold text-foreground">
-                            {formatCurrency(appSub.amount, appSub.currency)}
-                          </span>
-                          <span className="text-sm text-muted-foreground">/ month</span>
-                        </div>
-                      )}
                       <div className="flex flex-wrap gap-2">
                         <Button size="sm" className="gap-1.5 btn-press" asChild>
                           <a href={app.url} target="_blank" rel="noopener noreferrer">
@@ -281,6 +290,14 @@ export function DashboardPage() {
                         >
                           {trialCheckoutLoading ? "Redirecting..." : "Try for $1 — 7 days"}
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-muted-foreground hover:text-foreground btn-press"
+                          onClick={() => setUpsellApp(appKey)}
+                        >
+                          Learn More
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -293,7 +310,7 @@ export function DashboardPage() {
 
       {/* Credits + Recent payments */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
+        <div className="lg:col-span-2 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
           <CreditBalanceCard
             balance={credits}
             isLoading={isLoading}
@@ -301,7 +318,7 @@ export function DashboardPage() {
           />
         </div>
 
-        <Card className="animate-fade-in-up" style={{ animationDelay: '400ms' }}>
+        <Card className="animate-fade-in-up" style={{ animationDelay: '500ms' }}>
           <CardHeader className="space-y-1">
             <CardDescription>Recent payments</CardDescription>
             <CardTitle className="text-lg font-heading">Billing activity</CardTitle>
@@ -332,7 +349,7 @@ export function DashboardPage() {
       </div>
 
       {/* Quick Access */}
-      <div className="mt-6 animate-fade-in-up" style={{ animationDelay: '500ms' }}>
+      <div className="mt-6 animate-fade-in-up" style={{ animationDelay: '600ms' }}>
         <h2 className="font-heading text-lg font-semibold text-foreground mb-3">Quick access</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {/* Keywords */}
@@ -416,6 +433,20 @@ export function DashboardPage() {
             : null;
         })()}
       />
+
+      {upsellApp && (
+        <AppUpsellModal
+          appKey={upsellApp}
+          open={Boolean(upsellApp)}
+          onOpenChange={(open) => !open && setUpsellApp(null)}
+          onSubscribe={() => void handleSubscribe(upsellApp)}
+          onStartTrial={() => void handleStartTrial(upsellApp)}
+          subscribeLoading={checkoutLoading}
+          trialLoading={trialCheckoutLoading}
+          currentStatus={getAppStatus(upsellApp) === 'none' ? 'available' : getAppStatus(upsellApp) === 'trialing' ? 'trialing' : 'subscribed'}
+          appUrl={APP_CATALOG[upsellApp].url}
+        />
+      )}
     </>
   );
 }

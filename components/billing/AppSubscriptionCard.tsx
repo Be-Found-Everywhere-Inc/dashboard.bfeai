@@ -81,7 +81,7 @@ export const AppSubscriptionCard = ({
           </div>
           <div>
             <CardDescription>App subscription</CardDescription>
-            <CardTitle className="text-2xl">Keywords Discovery Tool</CardTitle>
+            <CardTitle className="text-2xl">Keyword Agent</CardTitle>
           </div>
         </div>
         {statusConfig && (

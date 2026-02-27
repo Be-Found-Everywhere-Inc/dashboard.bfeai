@@ -154,6 +154,13 @@ export const BillingService = {
       body: JSON.stringify({ appKey, trial: true }),
     }),
 
+  /** Create a Dual Trial Checkout Session ($2 bundle: Keywords + LABS). */
+  createDualTrialCheckout: () =>
+    authenticatedFetch<{ url: string }>("stripe-checkout", {
+      method: "POST",
+      body: JSON.stringify({ dualTrial: true }),
+    }),
+
   /**
    * Cancel subscription with retention offer flow.
    *

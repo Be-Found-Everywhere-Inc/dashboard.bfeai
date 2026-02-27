@@ -30,7 +30,7 @@ export interface AppConfig {
 export const APP_CATALOG: Record<AppKey, AppConfig> = {
   keywords: {
     key: 'keywords',
-    name: 'Keywords Discovery Tool',
+    name: 'Keyword Agent',
     shortName: 'Keywords',
     description: 'AI-powered SEO keyword research and analysis',
     longDescription: 'Discover high-value keywords with advanced metrics like search volume, CPC, conversion rates, and our proprietary Best Keywords Score. Perfect for SEO professionals and content marketers.',

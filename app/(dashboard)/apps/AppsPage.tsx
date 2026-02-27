@@ -11,9 +11,10 @@ import {
   ExternalLink,
   Zap,
 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@bfeai/ui";
-import { APP_CATALOG, APP_ORDER, type AppConfig } from "@/config/apps";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button } from "@bfeai/ui";
+import { APP_CATALOG, APP_ORDER, type AppConfig, type AppKey } from "@/config/apps";
 import { useBilling } from "@/hooks/useBilling";
+import { AppUpsellModal } from "@/components/billing/AppUpsellModal";
 import { toast } from "@bfeai/ui";
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -22,10 +23,19 @@ const ICON_MAP: Record<string, React.ElementType> = {
 };
 
 export function AppsPage() {
-  const { subscriptions, getSubscription, createCheckout, checkoutLoading, createTrialCheckout, trialCheckoutLoading } = useBilling();
+  const {
+    subscriptions,
+    getSubscription,
+    createCheckout,
+    checkoutLoading,
+    createTrialCheckout,
+    trialCheckoutLoading,
+    createDualTrialCheckout,
+    dualTrialCheckoutLoading,
+  } = useBilling();
   const searchParams = useSearchParams();
 
-  const [selectedApp, setSelectedApp] = useState<AppConfig | null>(null);
+  const [selectedApp, setSelectedApp] = useState<AppKey | null>(null);
   const [trialRedirecting, setTrialRedirecting] = useState(false);
   const [trialAttempted, setTrialAttempted] = useState(false);
 
@@ -91,6 +101,21 @@ export function AppsPage() {
     }
   };
 
+  const handleDualTrial = async () => {
+    try {
+      const url = await createDualTrialCheckout();
+      window.location.href = url;
+    } catch (error) {
+      toast({
+        title: "Unable to start dual trial",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const hasAvailableApp = APP_ORDER.some((key) => getAppStatus(APP_CATALOG[key]) === 'available');
+
   // Show loading state while auto-triggering trial checkout
   if (trialRedirecting) {
     return (
@@ -135,6 +160,40 @@ export function AppsPage() {
         </div>
       </div>
 
+      {/* Dual Trial Bundle Banner */}
+      {hasAvailableApp && (
+        <div className="animate-fade-in-up rounded-2xl border border-brand-indigo/20 bg-gradient-to-r from-brand-indigo/8 via-brand-purple/6 to-brand-teal/8 p-5 md:p-6" style={{ animationDelay: '100ms' }}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex -space-x-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-indigo to-brand-purple text-white shadow-lg ring-2 ring-background">
+                  <Search className="h-5 w-5" />
+                </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-teal to-brand-indigo text-white shadow-lg ring-2 ring-background">
+                  <Eye className="h-5 w-5" />
+                </div>
+              </div>
+              <div>
+                <p className="font-heading font-bold text-foreground">
+                  Try Both Apps for $2
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  7-day trial — Keyword Agent + LABS with 100 credits included
+                </p>
+              </div>
+            </div>
+            <Button
+              className="gap-2 btn-press shrink-0"
+              disabled={dualTrialCheckoutLoading}
+              onClick={() => void handleDualTrial()}
+            >
+              {dualTrialCheckoutLoading ? "Redirecting..." : "Start Bundle Trial"}
+              {!dualTrialCheckoutLoading && <Zap className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Apps Grid */}
       <div className="grid gap-6 md:grid-cols-2">
         {APP_ORDER.map((key, i) => {
@@ -150,7 +209,7 @@ export function AppsPage() {
                   ? 'border-brand-indigo/25 shadow-sm'
                   : 'border-border'
               }`}
-              style={{ animationDelay: `${(i + 1) * 100 + 100}ms` }}
+              style={{ animationDelay: `${(i + 1) * 100 + 200}ms` }}
             >
               <div
                 className={`absolute inset-0 bg-gradient-to-br ${app.gradient} opacity-[0.06]`}
@@ -225,7 +284,7 @@ export function AppsPage() {
                         <Button
                           variant="outline"
                           className="btn-press"
-                          onClick={() => setSelectedApp(app)}
+                          onClick={() => setSelectedApp(app.key)}
                         >
                           Details
                         </Button>
@@ -258,102 +317,20 @@ export function AppsPage() {
         })}
       </div>
 
-      {/* App Details Dialog */}
-      <Dialog open={Boolean(selectedApp)} onOpenChange={(open) => !open && setSelectedApp(null)}>
-        <DialogContent className="sm:max-w-2xl">
-          {selectedApp && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${selectedApp.gradient} text-white shadow-lg`}
-                  >
-                    {(() => {
-                      const IconComponent = ICON_MAP[selectedApp.icon] || Sparkles;
-                      return <IconComponent className="h-6 w-6" />;
-                    })()}
-                  </div>
-                  <div>
-                    <DialogTitle className="font-heading">{selectedApp.name}</DialogTitle>
-                    <DialogDescription>{selectedApp.description}</DialogDescription>
-                  </div>
-                </div>
-              </DialogHeader>
-
-              <div className="space-y-6 text-sm text-muted-foreground">
-                <p>{selectedApp.longDescription}</p>
-
-                <div>
-                  <p className="font-semibold font-heading text-foreground mb-3">Features included:</p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {selectedApp.features.map((feature) => (
-                      <div
-                        key={feature}
-                        className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 p-3"
-                      >
-                        <Check className="h-4 w-4 text-brand-indigo flex-shrink-0" />
-                        <span>{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {selectedApp.pricing && (
-                  <div className="rounded-xl border border-brand-indigo/15 bg-brand-indigo/5 p-4">
-                    <p className="font-semibold font-heading text-foreground">Pricing</p>
-                    <div className="mt-2 flex items-baseline gap-2">
-                      <span className="text-3xl font-heading font-bold text-foreground">${selectedApp.pricing.monthly}</span>
-                      <span className="text-muted-foreground">/month</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <DialogFooter className="flex flex-col gap-3 sm:flex-row">
-                <Button variant="outline" className="w-full btn-press" onClick={() => setSelectedApp(null)}>
-                  Close
-                </Button>
-                {getAppStatus(selectedApp) === 'available' ? (
-                  <>
-                    <Button
-                      variant="outline"
-                      className="w-full gap-2 border-brand-indigo/40 text-brand-indigo hover:bg-brand-indigo/5 btn-press"
-                      disabled={trialCheckoutLoading}
-                      onClick={() => {
-                        void handleStartTrial(selectedApp.key);
-                        setSelectedApp(null);
-                      }}
-                    >
-                      Try for $1 — 7 days
-                    </Button>
-                    <Button
-                      className="w-full gap-2 btn-press"
-                      onClick={() => {
-                        void handleSubscribe(selectedApp.key);
-                        setSelectedApp(null);
-                      }}
-                    >
-                      Subscribe
-                      <ArrowUpRight className="h-4 w-4" />
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    className="w-full gap-2 btn-press"
-                    onClick={() => {
-                      handleLaunchApp(selectedApp);
-                      setSelectedApp(null);
-                    }}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Launch App
-                  </Button>
-                )}
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* App Upsell Modal */}
+      {selectedApp && (
+        <AppUpsellModal
+          appKey={selectedApp}
+          open={Boolean(selectedApp)}
+          onOpenChange={(open) => !open && setSelectedApp(null)}
+          onSubscribe={() => void handleSubscribe(selectedApp)}
+          onStartTrial={() => void handleStartTrial(selectedApp)}
+          subscribeLoading={checkoutLoading}
+          trialLoading={trialCheckoutLoading}
+          currentStatus={getAppStatus(APP_CATALOG[selectedApp])}
+          appUrl={APP_CATALOG[selectedApp].url}
+        />
+      )}
     </div>
   );
 }

@@ -57,6 +57,11 @@ export const useBilling = () => {
     onSuccess: invalidate,
   });
 
+  const dualTrialCheckoutMutation = useMutation({
+    mutationFn: () => BillingService.createDualTrialCheckout(),
+    onSuccess: invalidate,
+  });
+
   const subscriptions = subscriptionQuery.data?.subscriptions ?? [];
 
   const getSubscription = (appKey: string) =>
@@ -100,5 +105,12 @@ export const useBilling = () => {
       return url;
     },
     trialCheckoutLoading: trialCheckoutMutation.isPending,
+
+    // Dual trial checkout ($2 bundle: Keywords + LABS)
+    createDualTrialCheckout: async () => {
+      const { url } = await dualTrialCheckoutMutation.mutateAsync();
+      return url;
+    },
+    dualTrialCheckoutLoading: dualTrialCheckoutMutation.isPending,
   };
 };
