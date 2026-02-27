@@ -176,16 +176,15 @@ const SLIDE_VARIANTS: { gradient: string; badge: string; decor: React.ReactNode 
     ),
   },
   {
-    // Slide 2: left-to-right gradient, centered large ring, small dots, circle badge
+    // Slide 2: left-to-right gradient, layered rounded rectangles, offset glow
     gradient: 'bg-gradient-to-r',
-    badge: 'rounded-full bg-white/20 backdrop-blur-sm ring-2 ring-white/15',
+    badge: 'rounded-2xl bg-white/20 backdrop-blur-sm ring-2 ring-white/15',
     decor: (
       <>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full border border-white/8" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-40 w-40 rounded-full border border-white/5" />
-        <div className="absolute top-8 left-12 h-3 w-3 rounded-full bg-white/20" />
-        <div className="absolute bottom-12 right-16 h-2 w-2 rounded-full bg-white/25" />
-        <div className="absolute top-16 right-24 h-2.5 w-2.5 rounded-full bg-white/15" />
+        <div className="absolute -top-6 right-16 h-36 w-36 rounded-3xl bg-white/[0.06] rotate-[18deg]" />
+        <div className="absolute top-10 right-10 h-20 w-20 rounded-2xl bg-white/[0.05] rotate-[32deg]" />
+        <div className="absolute -bottom-10 -left-6 h-44 w-44 rounded-3xl bg-white/[0.07] blur-xl" />
+        <div className="absolute bottom-8 left-20 h-14 w-14 rounded-xl border border-white/10 -rotate-12" />
       </>
     ),
   },
