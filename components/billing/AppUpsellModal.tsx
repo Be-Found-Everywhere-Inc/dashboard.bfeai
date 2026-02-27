@@ -161,6 +161,62 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Eye,
 };
 
+// Per-slide visual variants — same app colors, different compositions
+const SLIDE_VARIANTS: { gradient: string; badge: string; decor: React.ReactNode }[] = [
+  {
+    // Slide 1: diagonal gradient, top-right orb + bottom-left orb, rounded-2xl badge
+    gradient: 'bg-gradient-to-br',
+    badge: 'rounded-2xl bg-white/15 backdrop-blur-sm ring-1 ring-white/20',
+    decor: (
+      <>
+        <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-white/8 blur-xl" />
+        <div className="absolute top-6 right-8 h-16 w-16 rounded-2xl border border-white/10 rotate-12" />
+      </>
+    ),
+  },
+  {
+    // Slide 2: left-to-right gradient, centered large ring, small dots, circle badge
+    gradient: 'bg-gradient-to-r',
+    badge: 'rounded-full bg-white/20 backdrop-blur-sm ring-2 ring-white/15',
+    decor: (
+      <>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full border border-white/8" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-40 w-40 rounded-full border border-white/5" />
+        <div className="absolute top-8 left-12 h-3 w-3 rounded-full bg-white/20" />
+        <div className="absolute bottom-12 right-16 h-2 w-2 rounded-full bg-white/25" />
+        <div className="absolute top-16 right-24 h-2.5 w-2.5 rounded-full bg-white/15" />
+      </>
+    ),
+  },
+  {
+    // Slide 3: bottom-left to top-right gradient, grid pattern, rounded-xl badge
+    gradient: 'bg-gradient-to-tr',
+    badge: 'rounded-xl bg-white/10 backdrop-blur-md ring-1 ring-white/25 border border-white/10',
+    decor: (
+      <>
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+        <div className="absolute -bottom-16 right-8 h-48 w-48 rounded-full bg-white/8 blur-3xl" />
+        <div className="absolute top-4 left-6 h-20 w-20 rounded-xl border border-white/10 -rotate-12" />
+        <div className="absolute bottom-6 left-16 h-12 w-12 rounded-lg border border-white/8 rotate-6" />
+      </>
+    ),
+  },
+  {
+    // Slide 4: top-left to bottom-right, diagonal stripe, pill badge
+    gradient: 'bg-gradient-to-bl',
+    badge: 'rounded-[20px] bg-white/12 backdrop-blur-sm ring-1 ring-white/20 shadow-xl',
+    decor: (
+      <>
+        <div className="absolute -top-4 left-1/3 h-[140%] w-32 rotate-[25deg] bg-white/[0.04]" />
+        <div className="absolute -top-4 left-1/3 ml-40 h-[140%] w-16 rotate-[25deg] bg-white/[0.03]" />
+        <div className="absolute top-8 right-10 h-5 w-5 rounded-full border-2 border-white/15" />
+        <div className="absolute bottom-8 left-10 h-8 w-8 rounded-full border-2 border-white/10" />
+      </>
+    ),
+  },
+];
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -225,16 +281,13 @@ export function AppUpsellModal({
             <CarouselContent>
               {upsell.slides.map((slide, i) => (
                 <CarouselItem key={i}>
-                  <div className={`relative aspect-[16/9] bg-gradient-to-br ${app.gradient} overflow-hidden`}>
-                    {/* Decorative background elements */}
-                    <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-                    <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-white/8 blur-xl" />
-                    <div className="absolute top-6 right-8 h-16 w-16 rounded-2xl border border-white/10 rotate-12" />
-                    <div className="absolute bottom-10 right-20 h-10 w-10 rounded-xl border border-white/8 -rotate-6" />
+                  <div className={`relative aspect-[16/9] overflow-hidden ${SLIDE_VARIANTS[i].gradient} ${app.gradient}`}>
+                    {/* Per-slide decorative elements */}
+                    {SLIDE_VARIANTS[i].decor}
 
                     {/* Slide content */}
                     <div className="relative flex h-full flex-col items-center justify-center px-8 text-center text-white">
-                      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm shadow-lg ring-1 ring-white/20">
+                      <div className={`mb-4 flex h-16 w-16 items-center justify-center shadow-lg ${SLIDE_VARIANTS[i].badge}`}>
                         <slide.icon className="h-8 w-8" />
                       </div>
                       <h4 className="text-xl font-heading font-bold mb-2">{slide.title}</h4>
