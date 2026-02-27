@@ -59,8 +59,6 @@ type SlideData = {
   detail: string;
   /** Path base for screenshot (dark/light variants auto-resolved) */
   imageBase?: string;
-  /** Zoom into the relevant area of the screenshot */
-  zoom?: { scale: number; origin: string };
 };
 
 type AppUpsellData = {
@@ -99,7 +97,6 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Enter a seed keyword or URL and let AI expand it into hundreds of high-value opportunities.",
         detail: "AI-powered expansion engine",
         imageBase: "/app-screenshots/keywords/keywords-wizard",
-        zoom: { scale: 1.6, origin: "55% 22%" },
       },
       {
         icon: BarChart3,
@@ -107,7 +104,6 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "View search volume, CPC, difficulty, and Best Keywords score — with filters, sorting, and bulk actions.",
         detail: "Real-time search data",
         imageBase: "/app-screenshots/keywords/keywords-search",
-        zoom: { scale: 1.5, origin: "60% 60%" },
       },
       {
         icon: Gauge,
@@ -115,7 +111,6 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Watch AI enrich your keywords in real time — domain metrics, difficulty analysis, and competitive data in one pipeline.",
         detail: "Multi-step processing",
         imageBase: "/app-screenshots/keywords/keywords-active-search",
-        zoom: { scale: 1.5, origin: "55% 48%" },
       },
       {
         icon: Star,
@@ -123,7 +118,6 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Deep-dive into any keyword's competitive landscape — see top-ranking competitors, domain authority, and traffic estimates.",
         detail: "9+ competitor breakdown",
         imageBase: "/app-screenshots/keywords/keywords-difficulty",
-        zoom: { scale: 1.3, origin: "50% 55%" },
       },
       {
         icon: FileUp,
@@ -131,7 +125,6 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Import your own keyword lists from CSV files — preview, tag, and enrich hundreds of keywords in seconds.",
         detail: "Bulk keyword enrichment",
         imageBase: "/app-screenshots/keywords/keywords-csv",
-        zoom: { scale: 1.5, origin: "55% 38%" },
       },
       {
         icon: Link2,
@@ -139,7 +132,6 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Paste any URL and AI extracts the keywords it's targeting — perfect for competitor analysis and content audits.",
         detail: "AI-powered extraction",
         imageBase: "/app-screenshots/keywords/keywords-url",
-        zoom: { scale: 1.5, origin: "55% 42%" },
       },
     ],
   },
@@ -173,7 +165,6 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Health scores, visibility share, engine coverage, and recent scans — all at a glance.",
         detail: "Real-time dashboard",
         imageBase: "/app-screenshots/labs/labs-dashboard",
-        zoom: { scale: 1.6, origin: "60% 18%" },
       },
       {
         icon: TrendingUp,
@@ -181,7 +172,6 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Track daily visibility across ChatGPT, Gemini, Perplexity, Claude, and Google — with per-engine breakdowns.",
         detail: "6 engines monitored",
         imageBase: "/app-screenshots/labs/labs-analytics",
-        zoom: { scale: 1.4, origin: "60% 35%" },
       },
       {
         icon: DollarSign,
@@ -189,7 +179,6 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Quantify the monthly revenue at risk from AI invisibility. Compare your brand against competitors.",
         detail: "Revenue impact analysis",
         imageBase: "/app-screenshots/labs/labs-comp",
-        zoom: { scale: 1.5, origin: "55% 72%" },
       },
       {
         icon: Stethoscope,
@@ -197,7 +186,6 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Get AI-powered analysis of why your brand isn't being mentioned — with actionable steps to fix it.",
         detail: "Actionable recommendations",
         imageBase: "/app-screenshots/labs/labs-diagnosis",
-        zoom: { scale: 1.4, origin: "78% 50%" },
       },
       {
         icon: History,
@@ -205,7 +193,6 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Filter by engine, keyword, and date. Review sentiment, confidence scores, and citations for every scan.",
         detail: "Full audit trail",
         imageBase: "/app-screenshots/labs/labs-scan-history",
-        zoom: { scale: 1.4, origin: "55% 55%" },
       },
       {
         icon: Clock,
@@ -213,7 +200,6 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Set weekly or monthly scans across all engines with credit usage estimates — set it and forget it.",
         detail: "Hands-free monitoring",
         imageBase: "/app-screenshots/labs/labs-schedule",
-        zoom: { scale: 1.4, origin: "55% 48%" },
       },
       {
         icon: Bell,
@@ -221,7 +207,6 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         description: "Get notified when visibility drops, competitors change, scans complete, or credits run low.",
         detail: "Never miss a change",
         imageBase: "/app-screenshots/labs/labs-alerts",
-        zoom: { scale: 1.4, origin: "50% 55%" },
       },
     ],
   },
@@ -354,7 +339,7 @@ export function AppUpsellModal({
               {upsell.slides.map((slide, i) => (
                 <CarouselItem key={i}>
                   {slide.imageBase ? (
-                    /* Screenshot-based slide with dynamic zoom */
+                    /* Screenshot-based slide */
                     <div className="relative aspect-[16/9] overflow-hidden bg-gray-900">
                       <Image
                         src={`${slide.imageBase}-${isDark ? 'dark' : 'light'}.png`}
@@ -363,10 +348,6 @@ export function AppUpsellModal({
                         className="object-cover object-top"
                         sizes="(max-width: 672px) 100vw, 672px"
                         priority={i === 0}
-                        style={slide.zoom ? {
-                          transform: `scale(${slide.zoom.scale})`,
-                          transformOrigin: slide.zoom.origin,
-                        } : undefined}
                       />
                       {/* Bottom gradient overlay for text */}
                       <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
