@@ -35,6 +35,8 @@ export function DashboardPage() {
     checkoutLoading,
     createTrialCheckout,
     trialCheckoutLoading,
+    createBundleCheckout,
+    bundleCheckoutLoading,
     createPortalSession,
     portalSessionLoading,
     refetch,
@@ -92,6 +94,19 @@ export function DashboardPage() {
     } catch (error) {
       toast({
         title: "Unable to start trial",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBundleCheckout = async () => {
+    try {
+      const url = await createBundleCheckout();
+      window.location.href = url;
+    } catch (error) {
+      toast({
+        title: "Unable to start bundle checkout",
         description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
@@ -332,10 +347,11 @@ export function DashboardPage() {
             </div>
             <Button
               className="gap-2 btn-press shrink-0"
-              onClick={() => router.push('/apps')}
+              disabled={bundleCheckoutLoading}
+              onClick={() => void handleBundleCheckout()}
             >
-              Explore Apps
-              <ArrowUpRight className="h-4 w-4" />
+              {bundleCheckoutLoading ? "Redirecting..." : "Subscribe to Bundle"}
+              {!bundleCheckoutLoading && <ArrowUpRight className="h-4 w-4" />}
             </Button>
           </div>
         </div>

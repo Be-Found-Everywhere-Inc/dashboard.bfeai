@@ -7,6 +7,8 @@ import {
   checkTrialEligibility,
   createDualTrialCheckoutSession,
   checkDualTrialEligibility,
+  createBundleCheckoutSession,
+  checkBundleEligibility,
 } from "./utils/stripe";
 import { findSubscriptionPlan } from "../../config/plans";
 import { getStripeEnv } from "../../lib/stripe-env";
@@ -38,6 +40,7 @@ export const handler = withErrorHandling(async (event) => {
   let billingPeriod: "monthly" | "yearly" = "monthly";
   let trial = false;
   let dualTrial = false;
+  let bundle = false;
 
   if (event.body) {
     try {
@@ -47,6 +50,7 @@ export const handler = withErrorHandling(async (event) => {
       if (body.billingPeriod === "yearly") billingPeriod = "yearly";
       if (body.trial === true) trial = true;
       if (body.dualTrial === true) dualTrial = true;
+      if (body.bundle === true) bundle = true;
     } catch {
       // If body parsing fails, use defaults (backwards compatible)
     }
@@ -67,6 +71,23 @@ export const handler = withErrorHandling(async (event) => {
       successUrl: TRIAL_SUCCESS_URL,
       cancelUrl: CANCEL_URL,
     });
+
+    return jsonResponse(200, { url: session.url });
+  }
+
+  // Bundle checkout flow (Keywords + LABS, one subscription, $9/mo discount)
+  if (bundle) {
+    const eligibility = await checkBundleEligibility(user.id);
+    if (!eligibility.eligible) {
+      throw new HttpError(409, `Not eligible for bundle: ${eligibility.reason}`);
+    }
+
+    const session = await createBundleCheckoutSession(
+      customerId,
+      user.id,
+      SUCCESS_URL,
+      CANCEL_URL
+    );
 
     return jsonResponse(200, { url: session.url });
   }

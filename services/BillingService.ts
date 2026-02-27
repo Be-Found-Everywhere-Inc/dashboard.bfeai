@@ -161,6 +161,13 @@ export const BillingService = {
       body: JSON.stringify({ dualTrial: true }),
     }),
 
+  /** Create a Bundle Checkout Session (Keywords + LABS, $49/mo). */
+  createBundleCheckout: () =>
+    authenticatedFetch<{ url: string }>("stripe-checkout", {
+      method: "POST",
+      body: JSON.stringify({ bundle: true }),
+    }),
+
   /**
    * Cancel subscription with retention offer flow.
    *

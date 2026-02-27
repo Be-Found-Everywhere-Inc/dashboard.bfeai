@@ -108,6 +108,22 @@ export const handler: Handler = async (event) => {
 };
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract app keys from a subscription's metadata.
+ * Bundle subscriptions have type="bundle" and app_keys="keywords,labs".
+ * Regular subscriptions have app_key="keywords" (or "labs").
+ */
+function getAppKeysFromSubscription(subscription: Stripe.Subscription): string[] {
+  if (subscription.metadata?.type === "bundle") {
+    return (subscription.metadata?.app_keys ?? "keywords,labs").split(",").map(k => k.trim());
+  }
+  return [subscription.metadata?.app_key ?? "keywords"];
+}
+
+// ---------------------------------------------------------------------------
 // Event handlers
 // ---------------------------------------------------------------------------
 
@@ -163,6 +179,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     await allocateTrialCredits(userId, trialCredits, appKey, trialEndsAt, session.id);
     console.log(`[stripe-webhook] Allocated ${trialCredits} trial credits for ${appKey}, user ${userId}, expires ${trialEndsAt.toISOString()}`);
+  } else if (metadataType === "bundle") {
+    // Bundle checkout — subscription sync handled by subscription.updated event
+    console.log(`[stripe-webhook] Bundle checkout completed for user ${userId}`);
   } else {
     // Subscription checkout — sync handled by subscription.updated event
     const appKey = session.metadata?.app_key ?? "keywords";
@@ -348,11 +367,13 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
   let appKey = "keywords";
   let priceId: string | undefined;
+  let isBundle = false;
 
   try {
     const { stripe } = await import("./utils/stripe");
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     appKey = subscription.metadata?.app_key ?? "keywords";
+    isBundle = subscription.metadata?.type === "bundle";
 
     // Get the price ID from subscription items for credit lookup
     const firstItem = subscription.items?.data?.[0];
@@ -360,12 +381,41 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       priceId = typeof firstItem.price === "string" ? firstItem.price : firstItem.price?.id;
     }
 
-    // --- NEW: Trial billing_reason checks (inside the try block) ---
+    // --- Trial billing_reason checks ---
     const billingReason = invoice.billing_reason;
 
     if (billingReason === "subscription_create" && subscription.status === "trialing") {
       // This is the $1 setup fee invoice for a trial — do NOT allocate subscription credits
       console.log(`[stripe-webhook] Skipping credit allocation for trial setup fee invoice ${invoice.id}, user ${userId}`);
+      return;
+    }
+
+    // Bundle subscription: allocate credits for each app
+    if (isBundle) {
+      const bundleAppKeys = getAppKeysFromSubscription(subscription);
+
+      // Merge trial credits for each app if converting from trial
+      if (billingReason === "subscription_cycle") {
+        for (const key of bundleAppKeys) {
+          const { merged } = await mergeTrialCredits(userId, key);
+          if (merged > 0) {
+            console.log(`[stripe-webhook] Merged ${merged} trial credits into subscription for ${key}, user ${userId}`);
+          }
+        }
+      }
+
+      for (const key of bundleAppKeys) {
+        const monthlyCredits = getMonthlyCreditsForSubscription(key);
+        const { allocated } = await allocateSubscriptionCredits(
+          userId,
+          monthlyCredits,
+          key,
+          `${invoice.id}:${key}`
+        );
+        console.log(`[stripe-webhook] Allocated ${allocated}/${monthlyCredits} bundle credits for ${key}, user ${userId} (invoice: ${invoice.id})`);
+      }
+
+      await recalculateSubscriptionCap(userId);
       return;
     }
 
@@ -377,10 +427,12 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
         console.log(`[stripe-webhook] Merged ${merged} trial credits into subscription for ${appKey}, user ${userId}`);
       }
     }
-    // --- END NEW ---
   } catch (err) {
     console.warn("[stripe-webhook] Could not retrieve subscription metadata, using defaults:", err);
   }
+
+  // Skip regular single-app allocation if bundle (handled above)
+  if (isBundle) return;
 
   // Look up the correct monthly credits for this app/tier
   const monthlyCredits = getMonthlyCreditsForSubscription(appKey, priceId);
@@ -409,8 +461,12 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const userId = await getUserIdFromStripeCustomer(customerId);
   if (!userId) return;
 
-  const appKey = subscription.metadata?.app_key ?? "keywords";
-  await syncAppSubscription(userId, subscription, appKey);
+  // Determine app keys — bundle subscriptions cover multiple apps
+  const appKeys = getAppKeysFromSubscription(subscription);
+
+  for (const appKey of appKeys) {
+    await syncAppSubscription(userId, subscription, appKey);
+  }
 
   // Recalculate credit cap based on all active subscriptions
   const newCap = await recalculateSubscriptionCap(userId);
@@ -421,21 +477,18 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   await removeBundleDiscountIfIneligible(customerId, userId);
 
   // Detect trial ending: subscription was trialing, now is something else
-  // Check if trial_end exists and has passed, and status is no longer 'trialing'
   if (subscription.status !== "trialing" && subscription.trial_end) {
-    // Trial has ended — expire or merge depending on new status
-    if (subscription.status === "active") {
-      // Trial converted to paid — mergeTrialCredits is handled by invoice.payment_succeeded
-      // Just log here for visibility
-      console.log(`[stripe-webhook] Trial converted to active for ${appKey}, user ${userId}`);
-    } else {
-      // Trial canceled/expired without conversion — expire trial credits
-      await expireTrialCredits(userId, appKey, `Trial ended with status: ${subscription.status}`);
-      console.log(`[stripe-webhook] Trial credits expired for ${appKey}, user ${userId}, status: ${subscription.status}`);
+    for (const appKey of appKeys) {
+      if (subscription.status === "active") {
+        console.log(`[stripe-webhook] Trial converted to active for ${appKey}, user ${userId}`);
+      } else {
+        await expireTrialCredits(userId, appKey, `Trial ended with status: ${subscription.status}`);
+        console.log(`[stripe-webhook] Trial credits expired for ${appKey}, user ${userId}, status: ${subscription.status}`);
+      }
     }
   }
 
-  console.log(`[stripe-webhook] Synced subscription ${subscription.id} for user ${userId}, status: ${subscription.status}`);
+  console.log(`[stripe-webhook] Synced subscription ${subscription.id} for user ${userId}, apps: ${appKeys.join(",")}, status: ${subscription.status}`);
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -448,15 +501,17 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const userId = await getUserIdFromStripeCustomer(customerId);
   if (!userId) return;
 
-  const appKey = subscription.metadata?.app_key ?? "keywords";
-  await syncAppSubscription(userId, subscription, appKey);
+  const appKeys = getAppKeysFromSubscription(subscription);
+  for (const appKey of appKeys) {
+    await syncAppSubscription(userId, subscription, appKey);
+  }
 
   // Recalculate cap and remove bundle discount if no longer eligible
   const newCap = await recalculateSubscriptionCap(userId);
   console.log(`[stripe-webhook] Recalculated cap for user ${userId} after deletion: ${newCap}`);
   await removeBundleDiscountIfIneligible(customerId, userId);
 
-  console.log(`[stripe-webhook] Subscription ${subscription.id} deleted for user ${userId}`);
+  console.log(`[stripe-webhook] Subscription ${subscription.id} deleted for user ${userId}, apps: ${appKeys.join(",")}`);
 }
 
 async function handleSubscriptionPaused(subscription: Stripe.Subscription) {
@@ -469,15 +524,17 @@ async function handleSubscriptionPaused(subscription: Stripe.Subscription) {
   const userId = await getUserIdFromStripeCustomer(customerId);
   if (!userId) return;
 
-  const appKey = subscription.metadata?.app_key ?? "keywords";
-  await syncAppSubscription(userId, subscription, appKey);
+  const appKeys = getAppKeysFromSubscription(subscription);
+  for (const appKey of appKeys) {
+    await syncAppSubscription(userId, subscription, appKey);
+  }
 
   // Paused subs don't count as active — recalculate cap and check bundle
   const newCap = await recalculateSubscriptionCap(userId);
   console.log(`[stripe-webhook] Recalculated cap for user ${userId} after pause: ${newCap}`);
   await removeBundleDiscountIfIneligible(customerId, userId);
 
-  console.log(`[stripe-webhook] Subscription ${subscription.id} paused for user ${userId}`);
+  console.log(`[stripe-webhook] Subscription ${subscription.id} paused for user ${userId}, apps: ${appKeys.join(",")}`);
 }
 
 async function handleSubscriptionResumed(subscription: Stripe.Subscription) {
@@ -490,15 +547,17 @@ async function handleSubscriptionResumed(subscription: Stripe.Subscription) {
   const userId = await getUserIdFromStripeCustomer(customerId);
   if (!userId) return;
 
-  const appKey = subscription.metadata?.app_key ?? "keywords";
-  await syncAppSubscription(userId, subscription, appKey);
+  const appKeys = getAppKeysFromSubscription(subscription);
+  for (const appKey of appKeys) {
+    await syncAppSubscription(userId, subscription, appKey);
+  }
 
   // Resumed sub is active again — recalculate cap and check bundle eligibility
   const newCap = await recalculateSubscriptionCap(userId);
   console.log(`[stripe-webhook] Recalculated cap for user ${userId} after resume: ${newCap}`);
   await applyBundleDiscountIfEligible(customerId, userId);
 
-  console.log(`[stripe-webhook] Subscription ${subscription.id} resumed for user ${userId}`);
+  console.log(`[stripe-webhook] Subscription ${subscription.id} resumed for user ${userId}, apps: ${appKeys.join(",")}`);
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
@@ -534,7 +593,9 @@ async function handleTrialWillEnd(subscription: Stripe.Subscription) {
     return;
   }
 
-  const appKey = subscription.metadata?.app_key ?? "keywords";
+  const appKeys = getAppKeysFromSubscription(subscription);
+  const appKey = appKeys[0]; // Primary app for email context
+  const isBundle = subscription.metadata?.type === "bundle";
 
   // Get user email and name from Supabase
   let userEmail = "";
@@ -560,13 +621,17 @@ async function handleTrialWillEnd(subscription: Stripe.Subscription) {
 
   // Determine charge amount from subscription price
   let chargeAmount = "$29/mo"; // default
-  const firstItem = subscription.items?.data?.[0];
-  if (firstItem) {
-    const priceId = typeof firstItem.price === "string" ? firstItem.price : firstItem.price?.id;
-    if (priceId) {
-      const plan = findSubscriptionByPriceId(priceId);
-      if (plan) {
-        chargeAmount = `$${plan.monthlyPrice}/mo`;
+  if (isBundle) {
+    chargeAmount = "$49/mo (bundle discount applied)";
+  } else {
+    const firstItem = subscription.items?.data?.[0];
+    if (firstItem) {
+      const priceId = typeof firstItem.price === "string" ? firstItem.price : firstItem.price?.id;
+      if (priceId) {
+        const plan = findSubscriptionByPriceId(priceId);
+        if (plan) {
+          chargeAmount = `$${plan.monthlyPrice}/mo`;
+        }
       }
     }
   }
@@ -577,14 +642,9 @@ async function handleTrialWillEnd(subscription: Stripe.Subscription) {
     keywords: "BFEAI Keywords",
     labs: "BFEAI LABS",
   };
-  const appName = isDualTrial
+  const appName = isBundle || isDualTrial
     ? "BFEAI Keywords + LABS Bundle"
     : (appNames[appKey] ?? `BFEAI ${appKey}`);
-
-  // Override charge amount for dual trial to show post-discount bundle price
-  if (isDualTrial) {
-    chargeAmount = "$49/mo (bundle discount applied)";
-  }
 
   // Calculate charge date from trial_end
   const trialEnd = subscription.trial_end

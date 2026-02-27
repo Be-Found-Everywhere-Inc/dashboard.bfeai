@@ -62,6 +62,11 @@ export const useBilling = () => {
     onSuccess: invalidate,
   });
 
+  const bundleCheckoutMutation = useMutation({
+    mutationFn: () => BillingService.createBundleCheckout(),
+    onSuccess: invalidate,
+  });
+
   const subscriptions = subscriptionQuery.data?.subscriptions ?? [];
 
   const getSubscription = (appKey: string) =>
@@ -112,5 +117,12 @@ export const useBilling = () => {
       return url;
     },
     dualTrialCheckoutLoading: dualTrialCheckoutMutation.isPending,
+
+    // Bundle checkout (Keywords + LABS, $49/mo)
+    createBundleCheckout: async () => {
+      const { url } = await bundleCheckoutMutation.mutateAsync();
+      return url;
+    },
+    bundleCheckoutLoading: bundleCheckoutMutation.isPending,
   };
 };

@@ -9,6 +9,8 @@ import {
   getDualTrialAppKeys,
   getDualTrialTiers,
   getTrialCreditsForApp,
+  KEYWORDS_SUBSCRIPTION,
+  LABS_BASE_SUBSCRIPTION,
 } from "../../../config/plans";
 import { getStripeEnv } from "../../../lib/stripe-env";
 
@@ -652,6 +654,71 @@ export const removeBundleDiscountIfIneligible = async (
       console.error(`[stripe] Failed to remove bundle discount from ${sub.id}:`, err);
     }
   }
+};
+
+// ---------------------------------------------------------------------------
+// Bundle checkout (both apps, one session)
+// ---------------------------------------------------------------------------
+
+/**
+ * Check if a user is eligible for the bundle checkout.
+ * Eligible if user does NOT already have active subscriptions for BOTH apps.
+ */
+export const checkBundleEligibility = async (
+  userId: string
+): Promise<{ eligible: boolean; reason?: string }> => {
+  const { data: subs } = await supabaseAdmin
+    .from("app_subscriptions")
+    .select("app_key, status")
+    .eq("user_id", userId)
+    .in("status", ["active", "trialing"]);
+
+  const activeApps = new Set((subs ?? []).map((s) => s.app_key));
+
+  if (activeApps.has("keywords") && activeApps.has("labs")) {
+    return { eligible: false, reason: "Already subscribed to both apps" };
+  }
+
+  return { eligible: true };
+};
+
+/**
+ * Create a Stripe Checkout session for both apps with the bundle discount coupon.
+ * Creates a single Stripe subscription with 2 line items + coupon.
+ */
+export const createBundleCheckoutSession = async (
+  customerId: string,
+  userId: string,
+  successUrl: string,
+  cancelUrl: string
+): Promise<Stripe.Checkout.Session> => {
+  const keywordsPriceId = KEYWORDS_SUBSCRIPTION.stripePriceIdMonthly;
+  const labsPriceId = LABS_BASE_SUBSCRIPTION.stripePriceIdMonthly;
+
+  if (!keywordsPriceId || !labsPriceId) {
+    throw new HttpError(500, "Bundle checkout requires both Keywords and LABS price IDs to be configured");
+  }
+
+  const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
+  if (BUNDLE_DISCOUNT_COUPON_ID) {
+    discounts.push({ coupon: BUNDLE_DISCOUNT_COUPON_ID });
+  }
+
+  return stripe.checkout.sessions.create({
+    customer: customerId,
+    mode: "subscription",
+    line_items: [
+      { price: keywordsPriceId, quantity: 1 },
+      { price: labsPriceId, quantity: 1 },
+    ],
+    discounts,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata: { type: "bundle", user_id: userId },
+    subscription_data: {
+      metadata: { type: "bundle", app_keys: "keywords,labs" },
+    },
+  });
 };
 
 // ---------------------------------------------------------------------------
