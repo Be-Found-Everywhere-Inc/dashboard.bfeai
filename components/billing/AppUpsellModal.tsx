@@ -82,13 +82,13 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
         icon: Wand2,
         title: "AI Keyword Wizard",
         description: "Enter a seed keyword or URL and let AI expand it into hundreds of high-value opportunities.",
-        detail: "Powered by GPT-4o + DataForSEO",
+        detail: "AI-powered expansion engine",
       },
       {
         icon: BarChart3,
         title: "Competitive Metrics",
         description: "Get search volume, CPC, keyword difficulty, and conversion rate predictions for every keyword.",
-        detail: "Real-time data from DataForSEO",
+        detail: "Real-time search data",
       },
       {
         icon: Star,
@@ -216,11 +216,11 @@ export function AppUpsellModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-0 gap-0">
         <DialogTitle className="sr-only">{app.name} details</DialogTitle>
 
         {/* Feature highlight carousel */}
-        <div className="relative">
+        <div className="relative overflow-hidden">
           <Carousel setApi={setApi} opts={{ loop: true }} className="w-full">
             <CarouselContent>
               {upsell.slides.map((slide, i) => (
