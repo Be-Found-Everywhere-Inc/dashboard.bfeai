@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useCallback, useEffect } from "react";
+import { useTheme } from "next-themes";
+import Image from "next/image";
 import {
   Search,
   Eye,
@@ -15,6 +17,12 @@ import {
   CalendarClock,
   ExternalLink,
   ArrowUpRight,
+  TrendingUp,
+  DollarSign,
+  Stethoscope,
+  History,
+  Clock,
+  Bell,
 } from "lucide-react";
 import {
   Dialog,
@@ -46,6 +54,8 @@ type SlideData = {
   title: string;
   description: string;
   detail: string;
+  /** Path base for screenshot (dark/light variants auto-resolved) */
+  imageBase?: string;
 };
 
 type AppUpsellData = {
@@ -130,27 +140,52 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
     slides: [
       {
         icon: Radar,
-        title: "6 AI Engines",
-        description: "Monitor your brand across ChatGPT, Gemini, Perplexity, Claude, Google AI Overview, and AI Mode.",
-        detail: "Full AI landscape coverage",
+        title: "Your AI Visibility Command Center",
+        description: "Health scores, visibility share, engine coverage, and recent scans — all at a glance.",
+        detail: "Real-time dashboard",
+        imageBase: "/app-screenshots/labs/labs-dashboard",
       },
       {
-        icon: MessageSquareHeart,
-        title: "Sentiment Analysis",
-        description: "Understand how AI talks about your brand — positive, neutral, or negative tone detection.",
-        detail: "Powered by NLP analysis",
+        icon: TrendingUp,
+        title: "Visibility Trends by Engine",
+        description: "Track daily visibility across ChatGPT, Gemini, Perplexity, Claude, and Google — with per-engine breakdowns.",
+        detail: "6 engines monitored",
+        imageBase: "/app-screenshots/labs/labs-analytics",
       },
       {
-        icon: Users,
-        title: "Competitor Tracking",
-        description: "See which competitors appear alongside your brand in AI-generated answers.",
-        detail: "Side-by-side comparison",
+        icon: DollarSign,
+        title: "Lead Valuation Engine",
+        description: "Quantify the monthly revenue at risk from AI invisibility. Compare your brand against competitors.",
+        detail: "Revenue impact analysis",
+        imageBase: "/app-screenshots/labs/labs-comp",
       },
       {
-        icon: CalendarClock,
-        title: "Scheduled Scans",
-        description: "Automate recurring scans to track visibility trends and catch changes over time.",
-        detail: "Set it and forget it",
+        icon: Stethoscope,
+        title: "AI Invisibility Diagnosis",
+        description: "Get AI-powered analysis of why your brand isn't being mentioned — with actionable steps to fix it.",
+        detail: "Actionable recommendations",
+        imageBase: "/app-screenshots/labs/labs-diagnosis",
+      },
+      {
+        icon: History,
+        title: "Complete Scan History",
+        description: "Filter by engine, keyword, and date. Review sentiment, confidence scores, and citations for every scan.",
+        detail: "Full audit trail",
+        imageBase: "/app-screenshots/labs/labs-scan-history",
+      },
+      {
+        icon: Clock,
+        title: "Automated Scheduled Scans",
+        description: "Set weekly or monthly scans across all engines with credit usage estimates — set it and forget it.",
+        detail: "Hands-free monitoring",
+        imageBase: "/app-screenshots/labs/labs-schedule",
+      },
+      {
+        icon: Bell,
+        title: "Smart Alert Notifications",
+        description: "Get notified when visibility drops, competitors change, scans complete, or credits run low.",
+        detail: "Never miss a change",
+        imageBase: "/app-screenshots/labs/labs-alerts",
       },
     ],
   },
@@ -246,6 +281,8 @@ export function AppUpsellModal({
   const app = APP_CATALOG[appKey];
   const upsell = UPSELL_DATA[appKey];
   const IconComponent = ICON_MAP[app.icon] || Sparkles;
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   const [api, setApi] = useState<CarouselApi>();
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -280,22 +317,51 @@ export function AppUpsellModal({
             <CarouselContent>
               {upsell.slides.map((slide, i) => (
                 <CarouselItem key={i}>
-                  <div className={`relative aspect-[16/9] overflow-hidden ${SLIDE_VARIANTS[i].gradient} ${app.gradient}`}>
-                    {/* Per-slide decorative elements */}
-                    {SLIDE_VARIANTS[i].decor}
-
-                    {/* Slide content */}
-                    <div className="relative flex h-full flex-col items-center justify-center px-8 text-center text-white">
-                      <div className={`mb-4 flex h-16 w-16 items-center justify-center shadow-lg ${SLIDE_VARIANTS[i].badge}`}>
-                        <slide.icon className="h-8 w-8" />
+                  {slide.imageBase ? (
+                    /* Screenshot-based slide */
+                    <div className="relative aspect-[16/9] overflow-hidden bg-gray-900">
+                      <Image
+                        src={`${slide.imageBase}-${isDark ? 'dark' : 'light'}.png`}
+                        alt={slide.title}
+                        fill
+                        className="object-cover object-top"
+                        sizes="(max-width: 672px) 100vw, 672px"
+                        priority={i === 0}
+                      />
+                      {/* Bottom gradient overlay for text */}
+                      <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                      {/* Slide text */}
+                      <div className="absolute inset-x-0 bottom-0 flex items-end p-5 sm:p-6">
+                        <div className="flex items-start gap-3 text-white">
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${app.gradient} shadow-lg ring-1 ring-white/20`}>
+                            <slide.icon className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="text-base sm:text-lg font-heading font-bold leading-tight drop-shadow-md">{slide.title}</h4>
+                            <p className="mt-0.5 text-xs sm:text-sm text-white/80 leading-snug line-clamp-2 drop-shadow-sm">{slide.description}</p>
+                            <span className="mt-1.5 inline-block rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] sm:text-xs font-medium text-white/90 backdrop-blur-sm">
+                              {slide.detail}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <h4 className="text-xl font-heading font-bold mb-2">{slide.title}</h4>
-                      <p className="max-w-md text-sm text-white/80 leading-relaxed">{slide.description}</p>
-                      <span className="mt-3 inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm">
-                        {slide.detail}
-                      </span>
                     </div>
-                  </div>
+                  ) : (
+                    /* Gradient-based slide (keywords fallback) */
+                    <div className={`relative aspect-[16/9] overflow-hidden ${SLIDE_VARIANTS[i % SLIDE_VARIANTS.length].gradient} ${app.gradient}`}>
+                      {SLIDE_VARIANTS[i % SLIDE_VARIANTS.length].decor}
+                      <div className="relative flex h-full flex-col items-center justify-center px-8 text-center text-white">
+                        <div className={`mb-4 flex h-16 w-16 items-center justify-center shadow-lg ${SLIDE_VARIANTS[i % SLIDE_VARIANTS.length].badge}`}>
+                          <slide.icon className="h-8 w-8" />
+                        </div>
+                        <h4 className="text-xl font-heading font-bold mb-2">{slide.title}</h4>
+                        <p className="max-w-md text-sm text-white/80 leading-relaxed">{slide.description}</p>
+                        <span className="mt-3 inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm">
+                          {slide.detail}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </CarouselItem>
               ))}
             </CarouselContent>
@@ -304,12 +370,12 @@ export function AppUpsellModal({
           </Carousel>
 
           {/* Dot indicators */}
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
             {Array.from({ length: slideCount }).map((_, i) => (
               <button
                 key={i}
                 className={`h-2 rounded-full transition-all ${
-                  i === currentSlide ? 'w-6 bg-white' : 'w-2 bg-white/50'
+                  i === currentSlide ? 'w-6 bg-white shadow-md' : 'w-2 bg-white/50'
                 }`}
                 onClick={() => api?.scrollTo(i)}
                 aria-label={`Go to slide ${i + 1}`}
