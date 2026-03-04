@@ -9,9 +9,19 @@ import {
   getUserIdFromStripeCustomer,
   getOrCreateStripeCustomerByEmail,
 } from "./utils/stripe";
-import { findSubscriptionPlan } from "../../config/plans";
+import {
+  findSubscriptionPlan,
+  KEYWORDS_SUBSCRIPTION,
+  LABS_BASE_SUBSCRIPTION,
+  BUNDLE_DISCOUNT_COUPON_ID,
+  DUAL_TRIAL_SETUP_FEE_PRICE_ID,
+} from "../../config/plans";
+import { getStripeEnv } from "../../lib/stripe-env";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import type Stripe from "stripe";
+
+const TRIAL_SETUP_FEE_PRICE_ID = getStripeEnv("STRIPE_PRICE_TRIAL_SETUP_FEE");
 
 // ---------------------------------------------------------------------------
 // Rate limiting: 5 requests/hour/IP
@@ -49,19 +59,35 @@ function corsHeaders(origin?: string): Record<string, string> {
   const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
     "Access-Control-Allow-Origin": allowed,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",
   };
 }
 
 // ---------------------------------------------------------------------------
-// Valid app keys
+// Valid app keys + plan slugs
 // ---------------------------------------------------------------------------
 
 const VALID_APP_KEYS = new Set(["keywords", "labs"]);
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://dashboard.bfeai.com";
+const SUCCESS_URL = `${DASHBOARD_URL}/?checkout=success`;
+const TRIAL_SUCCESS_URL = `${DASHBOARD_URL}/?checkout=trial-success`;
+const CANCEL_URL = `${DASHBOARD_URL}/?checkout=cancelled`;
+
+/**
+ * Valid plan slugs for GET ?plan= parameter.
+ * Each maps to a Stripe Checkout session configuration.
+ */
+const VALID_PLANS = new Set([
+  "keywords-trial",   // $1 Keywords 7-day trial
+  "labs-trial",        // $1 LABS 7-day trial
+  "bundle-trial",      // $2 Keywords + LABS 7-day trial
+  "keywords",          // $29/mo Keywords subscription
+  "labs",              // $29/mo LABS subscription
+  "bundle",            // $49/mo Keywords + LABS bundle
+]);
 
 // ---------------------------------------------------------------------------
 // Handler
@@ -76,10 +102,213 @@ export const handler: Handler = async (event) => {
     return { statusCode: 204, headers: cors, body: "" };
   }
 
-  if (event.httpMethod !== "POST") {
-    return withCors(jsonResponse(405, { error: "Method not allowed" }), cors);
+  // -------------------------------------------------------------------------
+  // GET: Direct checkout links for WordPress CTA buttons
+  // Usage: ?plan=keywords-trial | labs-trial | bundle-trial | keywords | labs | bundle
+  // No login required — Stripe collects email, webhook provisions BFEAI account.
+  // -------------------------------------------------------------------------
+  if (event.httpMethod === "GET") {
+    return handleGetCheckout(event, cors);
   }
 
+  // -------------------------------------------------------------------------
+  // POST: Programmatic checkout (existing flow — requires email in JSON body)
+  // -------------------------------------------------------------------------
+  if (event.httpMethod === "POST") {
+    return handlePostCheckout(event, cors);
+  }
+
+  return withCors(jsonResponse(405, { error: "Method not allowed" }), cors);
+};
+
+// ---------------------------------------------------------------------------
+// GET handler: direct redirect to Stripe Checkout (no login, no email needed)
+// ---------------------------------------------------------------------------
+
+async function handleGetCheckout(
+  event: Parameters<Handler>[0],
+  cors: Record<string, string>
+): Promise<HandlerResponse> {
+  try {
+    // Rate limiting
+    if (rateLimiter) {
+      const ip =
+        event.headers["x-forwarded-for"]?.split(",")[0].trim() ??
+        event.headers["x-real-ip"] ??
+        event.headers["cf-connecting-ip"] ??
+        "unknown";
+
+      const { success } = await rateLimiter.limit(ip);
+      if (!success) {
+        return {
+          statusCode: 429,
+          headers: { "Content-Type": "text/plain" },
+          body: "Too many requests. Please try again later.",
+        };
+      }
+    }
+
+    const plan = event.queryStringParameters?.plan;
+
+    if (!plan || !VALID_PLANS.has(plan)) {
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "text/plain" },
+        body: `Invalid plan. Valid plans: ${[...VALID_PLANS].join(", ")}`,
+      };
+    }
+
+    const session = await createCheckoutSessionForPlan(plan);
+
+    if (!session.url) {
+      return {
+        statusCode: 500,
+        headers: { "Content-Type": "text/plain" },
+        body: "Failed to create checkout session",
+      };
+    }
+
+    // 303 redirect to Stripe Checkout
+    return {
+      statusCode: 303,
+      headers: { Location: session.url },
+      body: "",
+    };
+  } catch (err) {
+    console.error("[stripe-checkout-public] GET error:", err);
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "text/plain" },
+      body: "Internal server error",
+    };
+  }
+}
+
+/**
+ * Create a Stripe Checkout session for a given plan slug.
+ * No customer is passed — Stripe collects email on the checkout page.
+ * The webhook (handleCheckoutCompleted) provisions the BFEAI account
+ * using metadata.flow: "unauthenticated".
+ */
+async function createCheckoutSessionForPlan(plan: string): Promise<Stripe.Checkout.Session> {
+  switch (plan) {
+    // ----- Single-app trials ($1 + 7-day trial) -----
+    case "keywords-trial":
+    case "labs-trial": {
+      const appKey = plan === "keywords-trial" ? "keywords" : "labs";
+      const sub = findSubscriptionPlan(appKey);
+      const recurringPriceId = sub?.stripePriceIdMonthly;
+
+      if (!recurringPriceId) {
+        throw new HttpError(500, `No price configured for ${appKey}`);
+      }
+
+      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+        { price: recurringPriceId, quantity: 1 },
+      ];
+      if (TRIAL_SETUP_FEE_PRICE_ID) {
+        lineItems.push({ price: TRIAL_SETUP_FEE_PRICE_ID, quantity: 1 });
+      }
+
+      return stripe.checkout.sessions.create({
+        mode: "subscription",
+        allow_promotion_codes: true,
+        line_items: lineItems,
+        subscription_data: {
+          trial_period_days: 7,
+          metadata: { app_key: appKey },
+        },
+        metadata: { type: "trial", app_key: appKey, flow: "unauthenticated" },
+        success_url: TRIAL_SUCCESS_URL,
+        cancel_url: CANCEL_URL,
+      });
+    }
+
+    // ----- Dual trial ($2 setup fee → webhook creates both trial subs) -----
+    case "bundle-trial": {
+      if (!DUAL_TRIAL_SETUP_FEE_PRICE_ID) {
+        throw new HttpError(500, "Dual trial setup fee price not configured");
+      }
+
+      return stripe.checkout.sessions.create({
+        mode: "payment",
+        allow_promotion_codes: true,
+        line_items: [{ price: DUAL_TRIAL_SETUP_FEE_PRICE_ID, quantity: 1 }],
+        payment_intent_data: {
+          metadata: { type: "dual_trial" },
+        },
+        metadata: { type: "dual_trial", flow: "unauthenticated" },
+        success_url: TRIAL_SUCCESS_URL,
+        cancel_url: CANCEL_URL,
+      });
+    }
+
+    // ----- Regular subscriptions ($29/mo) -----
+    case "keywords":
+    case "labs": {
+      const sub = findSubscriptionPlan(plan);
+      const priceId = sub?.stripePriceIdMonthly;
+
+      if (!priceId) {
+        throw new HttpError(500, `No price configured for ${plan}`);
+      }
+
+      return stripe.checkout.sessions.create({
+        mode: "subscription",
+        allow_promotion_codes: true,
+        line_items: [{ price: priceId, quantity: 1 }],
+        subscription_data: {
+          metadata: { app_key: plan },
+        },
+        metadata: { type: "subscription", app_key: plan, flow: "unauthenticated" },
+        success_url: SUCCESS_URL,
+        cancel_url: CANCEL_URL,
+      });
+    }
+
+    // ----- Bundle subscription ($49/mo = $29 + $29 - $9 discount) -----
+    case "bundle": {
+      const keywordsPriceId = KEYWORDS_SUBSCRIPTION.stripePriceIdMonthly;
+      const labsPriceId = LABS_BASE_SUBSCRIPTION.stripePriceIdMonthly;
+
+      if (!keywordsPriceId || !labsPriceId) {
+        throw new HttpError(500, "Bundle requires both Keywords and LABS price IDs");
+      }
+
+      const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
+      if (BUNDLE_DISCOUNT_COUPON_ID) {
+        discounts.push({ coupon: BUNDLE_DISCOUNT_COUPON_ID });
+      }
+
+      return stripe.checkout.sessions.create({
+        mode: "subscription",
+        line_items: [
+          { price: keywordsPriceId, quantity: 1 },
+          { price: labsPriceId, quantity: 1 },
+        ],
+        discounts,
+        subscription_data: {
+          metadata: { type: "bundle", app_keys: "keywords,labs" },
+        },
+        metadata: { type: "bundle", flow: "unauthenticated" },
+        success_url: SUCCESS_URL,
+        cancel_url: CANCEL_URL,
+      });
+    }
+
+    default:
+      throw new HttpError(400, `Unknown plan: ${plan}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST handler: existing programmatic checkout (requires email in body)
+// ---------------------------------------------------------------------------
+
+async function handlePostCheckout(
+  event: Parameters<Handler>[0],
+  cors: Record<string, string>
+): Promise<HandlerResponse> {
   try {
     // Rate limiting
     if (rateLimiter) {
@@ -233,7 +462,7 @@ export const handler: Handler = async (event) => {
     console.error("[stripe-checkout-public] Unexpected error:", err);
     return withCors(jsonResponse(500, { error: "Internal server error" }), cors);
   }
-};
+}
 
 function withCors(response: HandlerResponse, cors: Record<string, string>): HandlerResponse {
   return {

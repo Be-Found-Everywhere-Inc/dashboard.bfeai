@@ -21,7 +21,7 @@ import {
   mergeTrialCredits,
   recalculateSubscriptionCap,
 } from "./utils/credits";
-import { getMonthlyCreditsForSubscription, getTrialCreditsForApp, findSubscriptionByPriceId, findSubscriptionPlan } from "../../config/plans";
+import { getMonthlyCreditsForSubscription, getTrialCreditsForApp, findSubscriptionByPriceId, findSubscriptionPlan, DUAL_TRIAL_SETUP_FEE_PRICE_ID } from "../../config/plans";
 import { sendTrialReminderEmail, sendWelcomeEmail } from "./utils/email";
 import type Stripe from "stripe";
 
@@ -112,15 +112,37 @@ export const handler: Handler = async (event) => {
 // ---------------------------------------------------------------------------
 
 /**
+ * Infer app keys from a subscription's price IDs.
+ * Used as fallback when subscription metadata hasn't been set yet (e.g. Payment Link checkouts).
+ */
+function getAppKeysFromPriceIds(subscription: Stripe.Subscription): string[] {
+  const appKeys: string[] = [];
+  for (const item of subscription.items?.data ?? []) {
+    const priceId = typeof item.price === "string" ? item.price : item.price?.id;
+    if (priceId) {
+      const plan = findSubscriptionByPriceId(priceId);
+      if (plan) appKeys.push(plan.appKey);
+    }
+  }
+  return [...new Set(appKeys)];
+}
+
+/**
  * Extract app keys from a subscription's metadata.
  * Bundle subscriptions have type="bundle" and app_keys="keywords,labs".
  * Regular subscriptions have app_key="keywords" (or "labs").
+ * Falls back to price ID detection for Payment Link subscriptions that lack metadata.
  */
 function getAppKeysFromSubscription(subscription: Stripe.Subscription): string[] {
   if (subscription.metadata?.type === "bundle") {
     return (subscription.metadata?.app_keys ?? "keywords,labs").split(",").map(k => k.trim());
   }
-  return [subscription.metadata?.app_key ?? "keywords"];
+  if (subscription.metadata?.app_key) {
+    return [subscription.metadata.app_key];
+  }
+  // Fallback: infer from price IDs (Payment Link subscriptions before metadata is set)
+  const fromPrices = getAppKeysFromPriceIds(subscription);
+  return fromPrices.length > 0 ? fromPrices : ["keywords"];
 }
 
 // ---------------------------------------------------------------------------
@@ -146,6 +168,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       console.error("[stripe-webhook] Failed to provision user for unauthenticated checkout, customer:", customerId);
       return;
     }
+  }
+
+  // Payment Link flow: checkout from Stripe Payment Link (no metadata set)
+  if (session.payment_link && !session.metadata?.type) {
+    const provisionedUserId = await handlePaymentLinkCheckout(session, customerId, userId);
+    if (provisionedUserId) {
+      await detectAndTagBetaTester(session, provisionedUserId);
+    }
+    return;
   }
 
   if (!userId) {
@@ -190,6 +221,132 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   // --- Beta tester auto-tagging via promo code ---
   await detectAndTagBetaTester(session, userId);
+}
+
+// ---------------------------------------------------------------------------
+// Payment Link checkout handling
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle a checkout that came from a Stripe Payment Link (e.g. WordPress CTA buttons).
+ * Payment Links don't carry BFEAI metadata, so we:
+ * 1. Auto-provision a BFEAI account from the Stripe customer's email
+ * 2. Identify the purchased plan from subscription price IDs
+ * 3. Set metadata on the Stripe subscription so future webhook events route correctly
+ * 4. Sync the app_subscriptions table immediately
+ * 5. For trial subscriptions, allocate trial credits
+ * 6. For payment-mode dual trials ($2), provision both trial subscriptions
+ *
+ * Returns the userId on success, null on failure.
+ */
+async function handlePaymentLinkCheckout(
+  session: Stripe.Checkout.Session,
+  customerId: string,
+  existingUserId: string | null
+): Promise<string | null> {
+  let userId = existingUserId;
+
+  // -----------------------------------------------------------------------
+  // Subscription mode: regular subs ($29/mo) and trial subs ($1 + 7-day trial)
+  // -----------------------------------------------------------------------
+  if (session.mode === "subscription" && session.subscription) {
+    const subscriptionId = typeof session.subscription === "string"
+      ? session.subscription
+      : session.subscription.id;
+
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ["latest_invoice"],
+    });
+
+    const appKeys = getAppKeysFromPriceIds(subscription);
+
+    // Set app_key on customer metadata before provisioning (welcome email reads it)
+    if (appKeys.length > 0) {
+      await stripe.customers.update(customerId, {
+        metadata: { app_key: appKeys[0] },
+      });
+    }
+
+    // Auto-provision BFEAI account if user doesn't exist
+    if (!userId) {
+      userId = await provisionUnauthenticatedTrialUser(customerId);
+      if (!userId) {
+        console.error("[stripe-webhook] Failed to provision user for Payment Link checkout, customer:", customerId);
+        return null;
+      }
+    }
+
+    if (appKeys.length === 0) {
+      console.warn("[stripe-webhook] Payment Link: no matching plans for subscription:", subscriptionId);
+      return userId;
+    }
+
+    const isBundle = appKeys.length >= 2;
+
+    // Set metadata on subscription so future events route correctly
+    const metadata: Record<string, string> = isBundle
+      ? { type: "bundle", app_keys: appKeys.join(","), source: "payment_link" }
+      : { app_key: appKeys[0], source: "payment_link" };
+
+    await stripe.subscriptions.update(subscriptionId, { metadata });
+
+    // Sync app_subscriptions immediately (don't rely on subscription.updated event timing)
+    for (const appKey of appKeys) {
+      await syncAppSubscription(userId, subscription, appKey);
+    }
+
+    // Trial detection: allocate trial credits if subscription is in trialing state
+    if (subscription.status === "trialing" || subscription.trial_end) {
+      const trialEndsAt = subscription.trial_end
+        ? new Date(subscription.trial_end * 1000)
+        : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      for (const appKey of appKeys) {
+        const trialCredits = getTrialCreditsForApp(appKey);
+        await allocateTrialCredits(userId, trialCredits, appKey, trialEndsAt, `plink_trial_${session.id}`);
+      }
+      console.log(`[stripe-webhook] Payment Link trial: allocated credits for user ${userId}, apps: ${appKeys.join(",")}, expires: ${trialEndsAt.toISOString()}`);
+    }
+
+    console.log(
+      `[stripe-webhook] Payment Link: provisioned ${isBundle ? "bundle" : appKeys[0]} ${subscription.status === "trialing" ? "trial " : ""}subscription for user ${userId}, sub: ${subscriptionId}`
+    );
+
+    return userId;
+  }
+
+  // -----------------------------------------------------------------------
+  // Payment mode: $2 dual trial setup fee
+  // -----------------------------------------------------------------------
+  if (session.mode === "payment") {
+    // Auto-provision BFEAI account if user doesn't exist
+    if (!userId) {
+      userId = await provisionUnauthenticatedTrialUser(customerId);
+      if (!userId) {
+        console.error("[stripe-webhook] Failed to provision user for Payment Link payment, customer:", customerId);
+        return null;
+      }
+    }
+
+    // Check if this is a dual trial by examining line items for the $2 setup fee
+    const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
+    const isDualTrial = DUAL_TRIAL_SETUP_FEE_PRICE_ID && lineItems.data.some(item => {
+      const priceId = typeof item.price === "string" ? item.price : item.price?.id;
+      return priceId === DUAL_TRIAL_SETUP_FEE_PRICE_ID;
+    });
+
+    if (isDualTrial) {
+      await provisionDualTrialSubscriptions(customerId, userId);
+      console.log(`[stripe-webhook] Payment Link: provisioned dual trial for user ${userId}`);
+    } else {
+      console.warn("[stripe-webhook] Payment Link payment mode: unrecognized payment, session:", session.id);
+    }
+
+    return userId;
+  }
+
+  console.warn("[stripe-webhook] Payment Link: unhandled session mode:", session.mode, "session:", session.id);
+  return userId;
 }
 
 // ---------------------------------------------------------------------------

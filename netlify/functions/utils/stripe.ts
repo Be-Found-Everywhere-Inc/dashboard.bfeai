@@ -60,15 +60,9 @@ export const getOrCreateStripeCustomer = async (
   } else {
     // Idempotency key ensures concurrent requests for the same email
     // produce only one Stripe customer (key valid for 24h in Stripe).
-    const customer = await stripe.customers.create(
-      {
-        email,
-        name: name ?? undefined,
-        metadata: { bfeai_user_id: userId },
-      },
-      { idempotencyKey: `bfeai_cust_auth_${email.toLowerCase()}` }
-    );
-    customerId = customer.id;
+    // If a concurrent request is already in-flight with the same key,
+    // Stripe returns 409 — retry after a short delay.
+    customerId = await createCustomerWithRetry(email, userId, name);
   }
 
   // Persist mapping
