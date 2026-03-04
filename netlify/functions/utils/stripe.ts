@@ -30,6 +30,95 @@ import { allocateTrialCredits } from "./credits";
 // ---------------------------------------------------------------------------
 
 /**
+ * Create a Stripe customer with retry on idempotency conflict (409).
+ * When two requests race with the same idempotency key, the second gets a 409.
+ * We retry after a delay — by then the first request has completed and we can
+ * find the customer via list.
+ */
+const createCustomerWithRetry = async (
+  email: string,
+  userId: string,
+  name?: string,
+  maxRetries = 2
+): Promise<string> => {
+  const idempotencyKey = `bfeai_cust_auth_${email.toLowerCase()}`;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const customer = await stripe.customers.create(
+        {
+          email,
+          name: name ?? undefined,
+          metadata: { bfeai_user_id: userId },
+        },
+        { idempotencyKey }
+      );
+      return customer.id;
+    } catch (err: unknown) {
+      const stripeErr = err as { code?: string; statusCode?: number };
+      const isIdempotencyConflict =
+        stripeErr.code === "idempotency_key_in_use" ||
+        stripeErr.statusCode === 409;
+
+      if (!isIdempotencyConflict || attempt === maxRetries) {
+        throw err;
+      }
+
+      // Wait for the in-flight request to complete, then check if customer exists
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+
+      const existing = await stripe.customers.list({ email, limit: 1 });
+      if (existing.data.length > 0) {
+        return existing.data[0].id;
+      }
+    }
+  }
+
+  throw new Error(`Failed to create Stripe customer for ${email} after ${maxRetries} retries`);
+};
+
+/**
+ * Same retry logic for the public (unauthenticated) checkout flow.
+ */
+const createPublicCustomerWithRetry = async (
+  email: string,
+  maxRetries = 2
+): Promise<string> => {
+  const idempotencyKey = `bfeai_cust_pub_${email}`;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const customer = await stripe.customers.create(
+        {
+          email,
+          metadata: { bfeai_source: "public_checkout" },
+        },
+        { idempotencyKey }
+      );
+      return customer.id;
+    } catch (err: unknown) {
+      const stripeErr = err as { code?: string; statusCode?: number };
+      const isIdempotencyConflict =
+        stripeErr.code === "idempotency_key_in_use" ||
+        stripeErr.statusCode === 409;
+
+      if (!isIdempotencyConflict || attempt === maxRetries) {
+        throw err;
+      }
+
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+
+      const existing = await stripe.customers.list({ email, limit: 1 });
+      if (existing.data.length > 0) {
+        return existing.data[0].id;
+      }
+    }
+  }
+
+  throw new Error(`Failed to create Stripe customer for ${email} after ${maxRetries} retries`);
+};
+
+/**
  * Get or create a Stripe customer for a BFEAI user.
  * Stores stripe_customer_id on the profiles table.
  * Uses a Stripe idempotency key to prevent duplicate customer creation from
@@ -58,17 +147,7 @@ export const getOrCreateStripeCustomer = async (
   if (existing.data.length > 0) {
     customerId = existing.data[0].id;
   } else {
-    // Idempotency key ensures concurrent requests for the same email
-    // produce only one Stripe customer (key valid for 24h in Stripe).
-    const customer = await stripe.customers.create(
-      {
-        email,
-        name: name ?? undefined,
-        metadata: { bfeai_user_id: userId },
-      },
-      { idempotencyKey: `bfeai_cust_auth_${email.toLowerCase()}` }
-    );
-    customerId = customer.id;
+    customerId = await createCustomerWithRetry(email, userId, name);
   }
 
   // Persist mapping
@@ -97,15 +176,7 @@ export const getOrCreateStripeCustomerByEmail = async (
     return existing.data[0].id;
   }
 
-  const customer = await stripe.customers.create(
-    {
-      email: normalized,
-      metadata: { bfeai_source: "public_checkout" },
-    },
-    { idempotencyKey: `bfeai_cust_pub_${normalized}` }
-  );
-
-  return customer.id;
+  return createPublicCustomerWithRetry(normalized);
 };
 
 // ---------------------------------------------------------------------------
