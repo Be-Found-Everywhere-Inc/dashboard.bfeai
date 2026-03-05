@@ -59,6 +59,13 @@ export async function GET(request: NextRequest) {
       }
     );
 
+    // Clear any stale session before starting OAuth.
+    // After logout, Supabase auth cookies (sb-*-auth-token) may still linger in the
+    // browser if the logout response didn't fully clear them (Netlify can strip
+    // Set-Cookie headers). Stale cookies cause exchangeCodeForSession to fail on
+    // the first attempt with "oauth_session_failed".
+    await supabase.auth.signOut();
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: provider as 'google' | 'github',
       options: {

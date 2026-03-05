@@ -116,6 +116,31 @@ export async function POST(request: NextRequest) {
     // Append manual header as additional backup
     response.headers.append('Set-Cookie', setCookieValue);
 
+    // Also clear Supabase auth cookies via Set-Cookie headers as backup.
+    // signOut() above clears them via cookieStore.set(), but on Netlify those
+    // may not transfer to manually constructed NextResponse objects.
+    const supabaseProjectRef = (process.env.NEXT_PUBLIC_SUPABASE_URL || '')
+      .replace('https://', '')
+      .replace('.supabase.co', '');
+    if (supabaseProjectRef) {
+      const sbCookieBase = `sb-${supabaseProjectRef}-auth-token`;
+      // Clear base cookie and chunked variants (Supabase uses .0, .1, etc.)
+      for (const suffix of ['', '.0', '.1', '.2', '.3', '-code-verifier']) {
+        const sbClearParts = [
+          `${sbCookieBase}${suffix}=`,
+          'Path=/',
+          'Max-Age=0',
+          `Expires=${expireDate}`,
+          'SameSite=Lax',
+        ];
+        if (isProduction) {
+          sbClearParts.push('Secure');
+        }
+        response.headers.append('Set-Cookie', sbClearParts.join('; '));
+      }
+      console.log('[Logout] Also clearing Supabase auth cookies via Set-Cookie headers');
+    }
+
     return response;
   } catch (error) {
     console.error('[Logout] Error:', error);
@@ -209,6 +234,27 @@ export async function GET(request: NextRequest) {
   // The POST handler is preferred for reliable cookie clearing
   const response = NextResponse.redirect(loginUrl);
   response.headers.append('Set-Cookie', setCookieValue);
+
+  // Also clear Supabase auth cookies as backup
+  const supabaseProjectRef = (process.env.NEXT_PUBLIC_SUPABASE_URL || '')
+    .replace('https://', '')
+    .replace('.supabase.co', '');
+  if (supabaseProjectRef) {
+    const sbCookieBase = `sb-${supabaseProjectRef}-auth-token`;
+    for (const suffix of ['', '.0', '.1', '.2', '.3', '-code-verifier']) {
+      const sbClearParts = [
+        `${sbCookieBase}${suffix}=`,
+        'Path=/',
+        'Max-Age=0',
+        `Expires=${expireDate}`,
+        'SameSite=Lax',
+      ];
+      if (isProduction) {
+        sbClearParts.push('Secure');
+      }
+      response.headers.append('Set-Cookie', sbClearParts.join('; '));
+    }
+  }
 
   return response;
 }
