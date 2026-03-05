@@ -21,7 +21,7 @@ import {
   mergeTrialCredits,
   recalculateSubscriptionCap,
 } from "./utils/credits";
-import { getMonthlyCreditsForSubscription, getTrialCreditsForApp, findSubscriptionByPriceId, findSubscriptionPlan, DUAL_TRIAL_SETUP_FEE_PRICE_ID } from "../../config/plans";
+import { getMonthlyCreditsForSubscription, getTrialCreditsForApp, getDualTrialAppKeys, findSubscriptionByPriceId, findSubscriptionPlan, DUAL_TRIAL_SETUP_FEE_PRICE_ID } from "../../config/plans";
 import { sendTrialReminderEmail, sendWelcomeEmail } from "./utils/email";
 import type Stripe from "stripe";
 
@@ -186,8 +186,20 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const metadataType = session.metadata?.type;
 
-  if (metadataType === "dual_trial") {
-    // Dual trial: $2 payment collected, now provision Keywords + LABS trial subscriptions
+  if (metadataType === "bundle_trial") {
+    // Bundle trial: subscription-mode checkout with 7-day trial on bundle price.
+    // Stripe already created the bundle subscription — just allocate trial credits.
+    const bundleAppKeys = getDualTrialAppKeys();
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+
+    for (const appKey of bundleAppKeys) {
+      const trialCredits = getTrialCreditsForApp(appKey);
+      await allocateTrialCredits(userId, trialCredits, appKey, trialEndsAt, `bundle_trial_${session.id}`);
+    }
+    console.log(`[stripe-webhook] Allocated bundle trial credits for user ${userId}, expires ${trialEndsAt.toISOString()}`);
+  } else if (metadataType === "dual_trial") {
+    // Legacy dual trial: $2 payment-mode checkout — provision Keywords + LABS trial subscriptions
     await provisionDualTrialSubscriptions(customerId, userId);
     console.log(`[stripe-webhook] Provisioned dual trial subscriptions for user ${userId}`);
   } else if (metadataType === "topup") {

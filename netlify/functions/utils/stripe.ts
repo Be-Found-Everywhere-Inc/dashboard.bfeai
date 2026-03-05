@@ -4,13 +4,12 @@ import { supabaseAdmin } from "./supabase-admin";
 import {
   findSubscriptionByPriceId,
   findSubscriptionPlan,
+  findBundlePlan,
   BUNDLE_DISCOUNT_COUPON_ID,
   DUAL_TRIAL_SETUP_FEE_PRICE_ID,
   getDualTrialAppKeys,
   getDualTrialTiers,
   getTrialCreditsForApp,
-  KEYWORDS_SUBSCRIPTION,
-  LABS_BASE_SUBSCRIPTION,
 } from "../../../config/plans";
 import { getStripeEnv } from "../../../lib/stripe-env";
 
@@ -733,10 +732,11 @@ export const removeBundleDiscountIfIneligible = async (
 
 /**
  * Check if a user is eligible for the bundle checkout.
- * Eligible if user does NOT already have active subscriptions for BOTH apps.
+ * Eligible if user does NOT already have active subscriptions for ALL specified apps.
  */
 export const checkBundleEligibility = async (
-  userId: string
+  userId: string,
+  appKeys: string[] = ["keywords", "labs"]
 ): Promise<{ eligible: boolean; reason?: string }> => {
   const { data: subs } = await supabaseAdmin
     .from("app_subscriptions")
@@ -746,48 +746,43 @@ export const checkBundleEligibility = async (
 
   const activeApps = new Set((subs ?? []).map((s) => s.app_key));
 
-  if (activeApps.has("keywords") && activeApps.has("labs")) {
-    return { eligible: false, reason: "Already subscribed to both apps" };
+  if (appKeys.every((key) => activeApps.has(key))) {
+    return { eligible: false, reason: "Already subscribed to all apps in this bundle" };
   }
 
   return { eligible: true };
 };
 
 /**
- * Create a Stripe Checkout session for both apps with the bundle discount coupon.
- * Creates a single Stripe subscription with 2 line items + coupon.
+ * Create a Stripe Checkout session for a bundle using a dedicated bundle price.
+ * Single line item + allow_promotion_codes (no coupon/discounts).
  */
 export const createBundleCheckoutSession = async (
   customerId: string,
   userId: string,
   successUrl: string,
-  cancelUrl: string
+  cancelUrl: string,
+  bundleSlug = "bundle"
 ): Promise<Stripe.Checkout.Session> => {
-  const keywordsPriceId = KEYWORDS_SUBSCRIPTION.stripePriceIdMonthly;
-  const labsPriceId = LABS_BASE_SUBSCRIPTION.stripePriceIdMonthly;
-
-  if (!keywordsPriceId || !labsPriceId) {
-    throw new HttpError(500, "Bundle checkout requires both Keywords and LABS price IDs to be configured");
+  const bundlePlan = findBundlePlan(bundleSlug);
+  if (!bundlePlan) {
+    throw new HttpError(500, `Unknown bundle slug: ${bundleSlug}`);
   }
 
-  const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
-  if (BUNDLE_DISCOUNT_COUPON_ID) {
-    discounts.push({ coupon: BUNDLE_DISCOUNT_COUPON_ID });
+  if (!bundlePlan.stripePriceIdMonthly) {
+    throw new HttpError(500, `No price configured for bundle "${bundlePlan.slug}"`);
   }
 
   return stripe.checkout.sessions.create({
     customer: customerId,
     mode: "subscription",
-    line_items: [
-      { price: keywordsPriceId, quantity: 1 },
-      { price: labsPriceId, quantity: 1 },
-    ],
-    discounts,
+    allow_promotion_codes: true,
+    line_items: [{ price: bundlePlan.stripePriceIdMonthly, quantity: 1 }],
     success_url: successUrl,
     cancel_url: cancelUrl,
     metadata: { type: "bundle", user_id: userId },
     subscription_data: {
-      metadata: { type: "bundle", app_keys: "keywords,labs" },
+      metadata: { type: "bundle", app_keys: bundlePlan.appKeys.join(",") },
     },
   });
 };
@@ -833,25 +828,35 @@ export const createDualTrialCheckoutSession = async (
     flow?: string;
   }
 ): Promise<Stripe.Checkout.Session> => {
-  if (!DUAL_TRIAL_SETUP_FEE_PRICE_ID) {
-    throw new HttpError(500, "STRIPE_PRICE_DUAL_TRIAL_SETUP_FEE is not configured");
+  const bundlePlan = findBundlePlan("bundle");
+  if (!bundlePlan?.stripePriceIdMonthly) {
+    throw new HttpError(500, "Bundle price not configured");
+  }
+
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+    { price: bundlePlan.stripePriceIdMonthly, quantity: 1 },
+  ];
+  if (DUAL_TRIAL_SETUP_FEE_PRICE_ID) {
+    lineItems.push({ price: DUAL_TRIAL_SETUP_FEE_PRICE_ID, quantity: 1 });
   }
 
   return stripe.checkout.sessions.create({
     customer: opts.customerId,
-    mode: "payment",
+    mode: "subscription",
     allow_promotion_codes: true,
-    line_items: [{ price: DUAL_TRIAL_SETUP_FEE_PRICE_ID, quantity: 1 }],
-    success_url: opts.successUrl,
-    cancel_url: opts.cancelUrl,
-    payment_intent_data: {
+    line_items: lineItems,
+    subscription_data: {
+      trial_period_days: 7,
       metadata: {
-        type: "dual_trial",
+        type: "bundle",
+        app_keys: bundlePlan.appKeys.join(","),
         ...(opts.userId ? { user_id: opts.userId } : {}),
       },
     },
+    success_url: opts.successUrl,
+    cancel_url: opts.cancelUrl,
     metadata: {
-      type: "dual_trial",
+      type: "bundle_trial",
       ...(opts.userId ? { user_id: opts.userId } : {}),
       ...(opts.flow ? { flow: opts.flow } : {}),
     },

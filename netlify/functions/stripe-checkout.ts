@@ -10,7 +10,7 @@ import {
   createBundleCheckoutSession,
   checkBundleEligibility,
 } from "./utils/stripe";
-import { findSubscriptionPlan } from "../../config/plans";
+import { findSubscriptionPlan, findBundlePlan } from "../../config/plans";
 import { getStripeEnv } from "../../lib/stripe-env";
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://dashboard.bfeai.com";
@@ -75,9 +75,13 @@ export const handler = withErrorHandling(async (event) => {
     return jsonResponse(200, { url: session.url });
   }
 
-  // Bundle checkout flow (Keywords + LABS, one subscription, $9/mo discount)
+  // Bundle checkout flow (config-driven, single price + promo codes)
   if (bundle) {
-    const eligibility = await checkBundleEligibility(user.id);
+    const bundlePlan = findBundlePlan("bundle");
+    const eligibility = await checkBundleEligibility(
+      user.id,
+      bundlePlan?.appKeys ?? ["keywords", "labs"]
+    );
     if (!eligibility.eligible) {
       throw new HttpError(409, `Not eligible for bundle: ${eligibility.reason}`);
     }

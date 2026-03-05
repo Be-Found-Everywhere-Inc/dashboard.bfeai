@@ -11,9 +11,8 @@ import {
 } from "./utils/stripe";
 import {
   findSubscriptionPlan,
-  KEYWORDS_SUBSCRIPTION,
-  LABS_BASE_SUBSCRIPTION,
-  BUNDLE_DISCOUNT_COUPON_ID,
+  findBundlePlan,
+  BUNDLE_PLANS,
   DUAL_TRIAL_SETUP_FEE_PRICE_ID,
 } from "../../config/plans";
 import { getStripeEnv } from "../../lib/stripe-env";
@@ -24,8 +23,12 @@ import type Stripe from "stripe";
 const TRIAL_SETUP_FEE_PRICE_ID = getStripeEnv("STRIPE_PRICE_TRIAL_SETUP_FEE");
 
 // ---------------------------------------------------------------------------
-// Rate limiting: 5 requests/hour/IP
+// Rate limiting: 5 requests/hour/IP (allowlisted IPs bypass)
 // ---------------------------------------------------------------------------
+
+const RATE_LIMIT_ALLOWLIST = new Set(
+  (process.env.RATE_LIMIT_ALLOWLIST_IPS ?? "").split(",").map((s) => s.trim()).filter(Boolean)
+);
 
 const isUpstashConfigured =
   process.env.UPSTASH_REDIS_URL &&
@@ -86,7 +89,7 @@ const VALID_PLANS = new Set([
   "bundle-trial",      // $2 Keywords + LABS 7-day trial
   "keywords",          // $29/mo Keywords subscription
   "labs",              // $29/mo LABS subscription
-  "bundle",            // $49/mo Keywords + LABS bundle
+  ...BUNDLE_PLANS.map((b) => b.slug),  // bundle slugs (config-driven)
 ]);
 
 // ---------------------------------------------------------------------------
@@ -130,7 +133,7 @@ async function handleGetCheckout(
   cors: Record<string, string>
 ): Promise<HandlerResponse> {
   try {
-    // Rate limiting
+    // Rate limiting (allowlisted IPs bypass)
     if (rateLimiter) {
       const ip =
         event.headers["x-forwarded-for"]?.split(",")[0].trim() ??
@@ -138,13 +141,15 @@ async function handleGetCheckout(
         event.headers["cf-connecting-ip"] ??
         "unknown";
 
-      const { success } = await rateLimiter.limit(ip);
-      if (!success) {
-        return {
-          statusCode: 429,
-          headers: { "Content-Type": "text/plain" },
-          body: "Too many requests. Please try again later.",
-        };
+      if (!RATE_LIMIT_ALLOWLIST.has(ip)) {
+        const { success } = await rateLimiter.limit(ip);
+        if (!success) {
+          return {
+            statusCode: 429,
+            headers: { "Content-Type": "text/plain" },
+            body: "Too many requests. Please try again later.",
+          };
+        }
       }
     }
 
@@ -224,20 +229,29 @@ async function createCheckoutSessionForPlan(plan: string): Promise<Stripe.Checko
       });
     }
 
-    // ----- Dual trial ($2 setup fee → webhook creates both trial subs) -----
+    // ----- Bundle trial ($2 setup fee + $49/mo bundle with 7-day trial) -----
     case "bundle-trial": {
-      if (!DUAL_TRIAL_SETUP_FEE_PRICE_ID) {
-        throw new HttpError(500, "Dual trial setup fee price not configured");
+      const bundlePlan = findBundlePlan("bundle");
+      if (!bundlePlan?.stripePriceIdMonthly) {
+        throw new HttpError(500, "Bundle price not configured");
+      }
+
+      const bundleLineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+        { price: bundlePlan.stripePriceIdMonthly, quantity: 1 },
+      ];
+      if (DUAL_TRIAL_SETUP_FEE_PRICE_ID) {
+        bundleLineItems.push({ price: DUAL_TRIAL_SETUP_FEE_PRICE_ID, quantity: 1 });
       }
 
       return stripe.checkout.sessions.create({
-        mode: "payment",
+        mode: "subscription",
         allow_promotion_codes: true,
-        line_items: [{ price: DUAL_TRIAL_SETUP_FEE_PRICE_ID, quantity: 1 }],
-        payment_intent_data: {
-          metadata: { type: "dual_trial" },
+        line_items: bundleLineItems,
+        subscription_data: {
+          trial_period_days: 7,
+          metadata: { type: "bundle", app_keys: bundlePlan.appKeys.join(",") },
         },
-        metadata: { type: "dual_trial", flow: "unauthenticated" },
+        metadata: { type: "bundle_trial", flow: "unauthenticated" },
         success_url: TRIAL_SUCCESS_URL,
         cancel_url: CANCEL_URL,
       });
@@ -266,38 +280,29 @@ async function createCheckoutSessionForPlan(plan: string): Promise<Stripe.Checko
       });
     }
 
-    // ----- Bundle subscription ($49/mo = $29 + $29 - $9 discount) -----
-    case "bundle": {
-      const keywordsPriceId = KEYWORDS_SUBSCRIPTION.stripePriceIdMonthly;
-      const labsPriceId = LABS_BASE_SUBSCRIPTION.stripePriceIdMonthly;
+    default: {
+      // ----- Bundle subscription (config-driven, single price + promo codes) -----
+      const bundlePlan = findBundlePlan(plan);
+      if (bundlePlan) {
+        if (!bundlePlan.stripePriceIdMonthly) {
+          throw new HttpError(500, `No price configured for bundle "${bundlePlan.slug}"`);
+        }
 
-      if (!keywordsPriceId || !labsPriceId) {
-        throw new HttpError(500, "Bundle requires both Keywords and LABS price IDs");
+        return stripe.checkout.sessions.create({
+          mode: "subscription",
+          allow_promotion_codes: true,
+          line_items: [{ price: bundlePlan.stripePriceIdMonthly, quantity: 1 }],
+          subscription_data: {
+            metadata: { type: "bundle", app_keys: bundlePlan.appKeys.join(",") },
+          },
+          metadata: { type: "bundle", flow: "unauthenticated" },
+          success_url: SUCCESS_URL,
+          cancel_url: CANCEL_URL,
+        });
       }
 
-      const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
-      if (BUNDLE_DISCOUNT_COUPON_ID) {
-        discounts.push({ coupon: BUNDLE_DISCOUNT_COUPON_ID });
-      }
-
-      return stripe.checkout.sessions.create({
-        mode: "subscription",
-        line_items: [
-          { price: keywordsPriceId, quantity: 1 },
-          { price: labsPriceId, quantity: 1 },
-        ],
-        discounts,
-        subscription_data: {
-          metadata: { type: "bundle", app_keys: "keywords,labs" },
-        },
-        metadata: { type: "bundle", flow: "unauthenticated" },
-        success_url: SUCCESS_URL,
-        cancel_url: CANCEL_URL,
-      });
-    }
-
-    default:
       throw new HttpError(400, `Unknown plan: ${plan}`);
+    }
   }
 }
 
@@ -310,7 +315,7 @@ async function handlePostCheckout(
   cors: Record<string, string>
 ): Promise<HandlerResponse> {
   try {
-    // Rate limiting
+    // Rate limiting (allowlisted IPs bypass)
     if (rateLimiter) {
       const ip =
         event.headers["x-forwarded-for"]?.split(",")[0].trim() ??
@@ -318,9 +323,11 @@ async function handlePostCheckout(
         event.headers["cf-connecting-ip"] ??
         "unknown";
 
-      const { success } = await rateLimiter.limit(ip);
-      if (!success) {
-        return withCors(jsonResponse(429, { error: "Too many requests. Try again later." }), cors);
+      if (!RATE_LIMIT_ALLOWLIST.has(ip)) {
+        const { success } = await rateLimiter.limit(ip);
+        if (!success) {
+          return withCors(jsonResponse(429, { error: "Too many requests. Try again later." }), cors);
+        }
       }
     }
 
@@ -369,7 +376,7 @@ async function handlePostCheckout(
       return withCors(jsonResponse(400, { error: "Email is required for checkout" }), cors);
     }
 
-    // Dual trial flow
+    // Dual/bundle trial flow
     if (dualTrial) {
       // Check eligibility if we have a known user
       if (existingUserId) {

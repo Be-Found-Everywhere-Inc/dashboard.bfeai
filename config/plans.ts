@@ -97,8 +97,34 @@ export function getMonthlyCreditsForSubscription(appKey: string, priceId?: strin
   return plan?.monthlyCredits ?? 300; // Default to 300 for safety
 }
 
-/** Bundle discount coupon ID — $9/mo off when user subscribes to 2+ apps */
+/** Bundle discount coupon ID — $9/mo off when user subscribes to 2+ apps individually */
 export const BUNDLE_DISCOUNT_COUPON_ID = getStripeEnv("STRIPE_COUPON_BUNDLE_DISCOUNT");
+
+// ---------------------------------------------------------------------------
+// Bundle plans (config-driven — add new bundles here + create Stripe Price)
+// ---------------------------------------------------------------------------
+
+export type BundlePlan = {
+  slug: string;
+  name: string;
+  appKeys: string[];
+  monthlyPrice: number;
+  stripePriceIdMonthly: string;
+};
+
+export const BUNDLE_PLANS: BundlePlan[] = [
+  {
+    slug: "bundle",
+    name: "Keywords + LABS Bundle",
+    appKeys: ["keywords", "labs"],
+    monthlyPrice: 49,
+    stripePriceIdMonthly: getStripeEnv("STRIPE_PRICE_BUNDLE_MONTHLY"),
+  },
+];
+
+export function findBundlePlan(slug: string): BundlePlan | undefined {
+  return BUNDLE_PLANS.find((b) => b.slug === slug);
+}
 
 /** Dual trial $2 setup fee one-time price ID */
 export const DUAL_TRIAL_SETUP_FEE_PRICE_ID = getStripeEnv("STRIPE_PRICE_DUAL_TRIAL_SETUP_FEE");
