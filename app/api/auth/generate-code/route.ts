@@ -8,7 +8,7 @@ import { JWTService } from '@/lib/auth/jwt';
 import crypto from 'crypto';
 
 // Valid client IDs for BFEAI apps
-const VALID_CLIENTS = ['keywords', 'admin', 'labs', 'smm'] as const;
+const VALID_CLIENTS = ['keywords', 'admin', 'labs', 'sma'] as const;
 type ClientId = typeof VALID_CLIENTS[number];
 
 // Redirect URI patterns for each client
@@ -16,7 +16,7 @@ const VALID_REDIRECT_PATTERNS: Record<ClientId, RegExp> = {
   keywords: /^https:\/\/keywords\.bfeai\.com/,
   admin: /^https:\/\/admin\.bfeai\.com/,
   labs: /^https:\/\/labs\.bfeai\.com/,
-  smm: /^https:\/\/smm\.bfeai\.com/,
+  sma: /^https:\/\/sma\.bfeai\.com/,
 };
 
 // Development patterns (localhost)
@@ -24,7 +24,7 @@ const DEV_REDIRECT_PATTERNS: Record<ClientId, RegExp> = {
   keywords: /^http:\/\/localhost:(3000|3001|3002)/,
   admin: /^http:\/\/localhost:(3000|3001|3002)/,
   labs: /^http:\/\/localhost:(3000|3001|3002|3003)/,
-  smm: /^http:\/\/localhost:(3000|3001|3002|3003|3004)/,
+  sma: /^http:\/\/localhost:(3000|3001|3002|3003|3004)/,
 };
 
 // Code expiry in seconds (30 seconds for security)
