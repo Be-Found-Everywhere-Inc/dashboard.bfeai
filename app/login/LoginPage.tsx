@@ -12,6 +12,23 @@ import { Button, Input, Label, Checkbox } from '@bfeai/ui';
 import { loginSchema, type LoginInput } from '@/lib/validation/schemas';
 import { useRecaptcha, RecaptchaScript } from '@/components/recaptcha';
 
+/**
+ * SECURITY: Validate redirect URL to prevent open redirect attacks.
+ * Only allows relative paths (not protocol-relative) or *.bfeai.com domains.
+ */
+function isValidRedirectUrl(url: string): boolean {
+  if (!url || !url.trim()) return false;
+  // Allow relative paths, but reject protocol-relative URLs (//evil.com)
+  if (url.startsWith('/') && !url.startsWith('//')) return true;
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    return hostname === 'bfeai.com' || hostname.endsWith('.bfeai.com');
+  } catch {
+    return false;
+  }
+}
+
 const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || null;
 
 function LoginForm() {
@@ -138,9 +155,16 @@ function LoginForm() {
 
       // Internal navigation or fallback for external URLs
       if (redirectUrl.startsWith('http://') || redirectUrl.startsWith('https://')) {
-        window.location.href = redirectUrl;
-      } else {
+        // SECURITY: Validate external redirect URL against allowlist
+        if (isValidRedirectUrl(redirectUrl)) {
+          window.location.href = redirectUrl;
+        } else {
+          router.push('/');
+        }
+      } else if (redirectUrl.startsWith('/') && !redirectUrl.startsWith('//')) {
         router.push(redirectUrl);
+      } else {
+        router.push('/');
       }
     } catch (error) {
       console.error('Login error:', error);

@@ -24,14 +24,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate redirect URL - must be a valid URL or relative path
+    // SECURITY: Validate redirect URL against allowlist to prevent open redirects
     if (redirect.startsWith('http://') || redirect.startsWith('https://')) {
-      // Absolute URL - validate it's a bfeai.com domain for security
       try {
         const url = new URL(redirect);
-        if (!url.hostname.endsWith('.bfeai.com') && url.hostname !== 'localhost') {
-          console.warn('[Set OAuth Redirect] Suspicious redirect URL:', redirect);
-          // Still allow it but log it - the callback will validate
+        const hostname = url.hostname.toLowerCase();
+        const isAllowed = hostname === 'bfeai.com' || hostname.endsWith('.bfeai.com') ||
+          (process.env.NODE_ENV !== 'production' && hostname === 'localhost');
+        if (!isAllowed) {
+          console.warn('[Set OAuth Redirect] Rejected non-BFEAI redirect URL:', redirect);
+          return NextResponse.json(
+            { error: 'Redirect URL must be a *.bfeai.com domain' },
+            { status: 400 }
+          );
         }
       } catch {
         return NextResponse.json(
@@ -39,8 +44,8 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-    } else if (!redirect.startsWith('/')) {
-      // Relative URLs must start with /
+    } else if (!redirect.startsWith('/') || redirect.startsWith('//')) {
+      // Relative URLs must start with / but reject protocol-relative //
       return NextResponse.json(
         { error: 'Invalid redirect path' },
         { status: 400 }

@@ -43,6 +43,22 @@ function isAuthPage(pathname: string): boolean {
   return ['/login', '/signup'].includes(pathname);
 }
 
+/**
+ * SECURITY: Validate redirect URL to prevent open redirect attacks.
+ * Only allows relative paths (not protocol-relative) or *.bfeai.com domains.
+ */
+function isValidRedirectUrl(url: string): boolean {
+  if (!url || !url.trim()) return false;
+  if (url.startsWith('/') && !url.startsWith('//')) return true;
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    return hostname === 'bfeai.com' || hostname.endsWith('.bfeai.com');
+  } catch {
+    return false;
+  }
+}
+
 function hasValidToken(request: NextRequest): boolean {
   const token = request.cookies.get('bfeai_session')?.value;
   if (!token) return false;
@@ -67,8 +83,8 @@ export function middleware(request: NextRequest) {
     // Redirect authenticated users away from login/signup to dashboard
     if (isAuthPage(pathname) && hasValidToken(request)) {
       const redirect = request.nextUrl.searchParams.get('redirect');
-      if (redirect) {
-        if (redirect.startsWith('https://') && redirect.includes('.bfeai.com')) {
+      if (redirect && isValidRedirectUrl(redirect)) {
+        if (redirect.startsWith('https://')) {
           return NextResponse.redirect(new URL(redirect));
         }
         return NextResponse.redirect(new URL(redirect, request.url));

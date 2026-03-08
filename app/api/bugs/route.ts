@@ -52,10 +52,10 @@ export async function POST(request: NextRequest) {
       if (uploadError) {
         console.error('Screenshot upload failed:', uploadError.message);
       } else {
-        const { data: urlData } = supabase.storage
+        const { data: urlData } = await supabase.storage
           .from('bug-screenshots')
-          .getPublicUrl(filePath);
-        screenshotUrl = urlData.publicUrl;
+          .createSignedUrl(filePath, 31536000); // 1 year
+        if (urlData?.signedUrl) screenshotUrl = urlData.signedUrl;
       }
     }
 
@@ -74,10 +74,10 @@ export async function POST(request: NextRequest) {
       if (uploadError) {
         console.error('Console screenshot upload failed:', uploadError.message);
       } else {
-        const { data: urlData } = supabase.storage
+        const { data: urlData } = await supabase.storage
           .from('bug-screenshots')
-          .getPublicUrl(filePath);
-        images.push(urlData.publicUrl);
+          .createSignedUrl(filePath, 31536000); // 1 year
+        if (urlData?.signedUrl) images.push(urlData.signedUrl);
       }
     }
 
@@ -100,10 +100,10 @@ export async function POST(request: NextRequest) {
       if (uploadError) {
         console.error(`Attachment ${i} upload failed:`, uploadError.message);
       } else {
-        const { data: urlData } = supabase.storage
+        const { data: urlData } = await supabase.storage
           .from('bug-screenshots')
-          .getPublicUrl(filePath);
-        images.push(urlData.publicUrl);
+          .createSignedUrl(filePath, 31536000); // 1 year
+        if (urlData?.signedUrl) images.push(urlData.signedUrl);
       }
     }
 

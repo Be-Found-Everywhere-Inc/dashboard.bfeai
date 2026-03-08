@@ -18,6 +18,22 @@ import { Suspense } from 'react';
  * This approach works around the issue where cookies on redirect responses may be
  * stripped by edge platforms like Netlify.
  */
+/**
+ * SECURITY: Validate redirect URL to prevent open redirect attacks.
+ * Only allows relative paths (not protocol-relative) or *.bfeai.com domains.
+ */
+function isValidRedirectUrl(url: string): boolean {
+  if (!url || !url.trim()) return false;
+  if (url.startsWith('/') && !url.startsWith('//')) return true;
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    return hostname === 'bfeai.com' || hostname.endsWith('.bfeai.com');
+  } catch {
+    return false;
+  }
+}
+
 function SSOCompleteContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -26,7 +42,9 @@ function SSOCompleteContent() {
 
   useEffect(() => {
     const token = searchParams.get('token');
-    const redirect = searchParams.get('redirect') || '/';
+    const rawRedirect = searchParams.get('redirect') || '/';
+    // SECURITY: Validate redirect URL against allowlist
+    const redirect = isValidRedirectUrl(rawRedirect) ? rawRedirect : '/';
 
     if (!token) {
       setStatus('error');

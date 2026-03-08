@@ -16,6 +16,22 @@ import { Suspense } from 'react';
  * 1. Calls an API endpoint that sets the bfeai_session cookie (on a non-redirect response)
  * 2. Then redirects to the final destination via client-side navigation
  */
+/**
+ * SECURITY: Validate redirect URL to prevent open redirect attacks.
+ * Only allows relative paths (not protocol-relative) or *.bfeai.com domains.
+ */
+function isValidRedirectUrl(url: string): boolean {
+  if (!url || !url.trim()) return false;
+  if (url.startsWith('/') && !url.startsWith('//')) return true;
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    return hostname === 'bfeai.com' || hostname.endsWith('.bfeai.com');
+  } catch {
+    return false;
+  }
+}
+
 function SSOLandingContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'setting-cookie' | 'redirecting' | 'error'>('loading');
@@ -23,7 +39,9 @@ function SSOLandingContent() {
 
   useEffect(() => {
     const token = searchParams.get('token');
-    const redirect = searchParams.get('redirect') || '/';
+    const rawRedirect = searchParams.get('redirect') || '/';
+    // SECURITY: Validate redirect URL against allowlist
+    const redirect = isValidRedirectUrl(rawRedirect) ? rawRedirect : '/';
     const accountsUrl = process.env.NEXT_PUBLIC_ACCOUNTS_URL || 'https://accounts.bfeai.com';
 
     if (!token) {
