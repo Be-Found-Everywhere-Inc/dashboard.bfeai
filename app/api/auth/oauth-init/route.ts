@@ -31,6 +31,40 @@ export async function GET(request: NextRequest) {
     const cookiesToSet: { name: string; value: string; options: CookieOptions }[] = [];
     const cookieStore = await cookies();
 
+    // ---------------------------------------------------------------
+    // Explicitly clear ALL stale Supabase auth cookies BEFORE creating
+    // the Supabase client. This replaces the previous approach of calling
+    // supabase.auth.signOut() which fired an unawaited onAuthStateChange
+    // callback, creating a race condition with signInWithOAuth's PKCE
+    // code verifier storage — both pushed entries to cookiesToSet
+    // concurrently via shared mutable state, causing the PKCE cookie
+    // to be missing or corrupted on Netlify.
+    // ---------------------------------------------------------------
+    const supabaseProjectRef = (process.env.NEXT_PUBLIC_SUPABASE_URL || '')
+      .replace('https://', '')
+      .replace('.supabase.co', '');
+
+    if (supabaseProjectRef) {
+      const sbCookieBase = `sb-${supabaseProjectRef}-auth-token`;
+      // Clear base cookie, chunked variants (.0-.4), and stale code verifier
+      const staleSuffixes = ['', '.0', '.1', '.2', '.3', '.4', '-code-verifier'];
+      for (const suffix of staleSuffixes) {
+        const cookieName = `${sbCookieBase}${suffix}`;
+        // Only clear if the cookie actually exists in the request
+        if (cookieStore.get(cookieName)) {
+          cookiesToSet.push({
+            name: cookieName,
+            value: '',
+            options: { path: '/', sameSite: 'lax', maxAge: 0 },
+          });
+        }
+      }
+
+      if (cookiesToSet.length > 0) {
+        console.log('[OAuth Init] Clearing stale Supabase cookies:', cookiesToSet.length);
+      }
+    }
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -59,12 +93,12 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    // Clear any stale session before starting OAuth.
-    // After logout, Supabase auth cookies (sb-*-auth-token) may still linger in the
-    // browser if the logout response didn't fully clear them (Netlify can strip
-    // Set-Cookie headers). Stale cookies cause exchangeCodeForSession to fail on
-    // the first attempt with "oauth_session_failed".
-    await supabase.auth.signOut();
+    // NOTE: We intentionally do NOT call supabase.auth.signOut() here.
+    // signOut() fires an async onAuthStateChange('SIGNED_OUT') callback
+    // that is NOT awaited by the Supabase auth-js library. This callback
+    // calls applyServerStorage which pushes cookie entries concurrently
+    // with signInWithOAuth's PKCE storage, causing a race condition.
+    // Stale cookies are cleared explicitly above instead.
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: provider as 'google' | 'github',
@@ -82,12 +116,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('[OAuth Init] Generated auth URL, PKCE cookies to set:', cookiesToSet.length);
+    // Deduplicate cookiesToSet — keep last entry per cookie name so that
+    // PKCE set entries always win over earlier stale-cookie clear entries.
+    const deduped = new Map<string, (typeof cookiesToSet)[number]>();
+    for (const entry of cookiesToSet) {
+      deduped.set(entry.name, entry);
+    }
+
+    console.log('[OAuth Init] Generated auth URL, PKCE cookies to set:', deduped.size,
+      'names:', [...deduped.keys()].join(', '));
 
     // Return JSON — NOT a redirect — so Netlify preserves Set-Cookie headers
     const response = NextResponse.json({ url: data.url });
-    for (const { name, value, options } of cookiesToSet) {
-      response.cookies.set(name, value, options);
+    for (const entry of deduped.values()) {
+      response.cookies.set(entry.name, entry.value, entry.options);
     }
 
     return response;
