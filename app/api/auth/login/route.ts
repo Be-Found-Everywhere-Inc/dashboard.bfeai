@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import crypto from 'crypto';
 import { JWTService } from '@/lib/auth/jwt';
 import { checkRateLimit, getClientIp } from '@/lib/security/rate-limiter';
 import {
@@ -253,18 +254,46 @@ export async function POST(request: NextRequest) {
     // Create JWT token for SSO using centralized service
     const token = JWTService.generateSSOToken(userId, userEmail, role);
 
+    // Generate refresh token for token rotation
+    const sessionId = crypto.randomBytes(16).toString('hex');
+    const { token: refreshToken, jti: refreshJti } =
+      JWTService.generateRefreshToken(userId, userEmail, role, sessionId);
+
+    // Store session with refresh JTI for rotation tracking
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const adminClient = createAdminClient();
+    await adminClient.from('user_sessions').insert({
+      user_id: userId,
+      session_id: sessionId,
+      refresh_jti: refreshJti,
+      created_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      last_active: new Date().toISOString(),
+    });
+
     // Set domain-wide cookie for SSO
     const cookieStore = await cookies();
     // For SSO to work properly, default to 7 days. Extended to 30 days with "Remember Me"
     const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60; // 30 days if remember me, otherwise 7 days
+    const domain = process.env.NODE_ENV === 'production' ? '.bfeai.com' : 'localhost';
 
     cookieStore.set('bfeai_session', token, {
-      domain: process.env.NODE_ENV === 'production' ? '.bfeai.com' : 'localhost',
+      domain,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge,
       path: '/',
+    });
+
+    // Set refresh token cookie (stricter security, path-restricted)
+    cookieStore.set('bfeai_refresh', refreshToken, {
+      domain,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60, // Always 7 days for refresh
+      path: '/api/auth',
     });
 
     // Return success with user info (frontend handles redirect)

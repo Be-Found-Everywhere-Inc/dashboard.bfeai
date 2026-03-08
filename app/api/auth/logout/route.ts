@@ -80,7 +80,17 @@ export async function POST(request: NextRequest) {
       path: '/',
     });
 
-    console.log('[Logout] Cleared cookie via Next.js cookies API');
+    // Clear refresh token cookie
+    cookieStore.set('bfeai_refresh', '', {
+      domain: cookieDomain,
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'strict',
+      maxAge: 0,
+      path: '/api/auth',
+    });
+
+    console.log('[Logout] Cleared SSO and refresh cookies via Next.js cookies API');
 
     // Method 2: Also add manual Set-Cookie header as backup
     // Use BOTH Max-Age=0 AND Expires for maximum browser compatibility
@@ -115,6 +125,21 @@ export async function POST(request: NextRequest) {
 
     // Append manual header as additional backup
     response.headers.append('Set-Cookie', setCookieValue);
+
+    // Also clear refresh token via manual header
+    const refreshCookieParts = [
+      'bfeai_refresh=',
+      `Domain=${cookieDomain}`,
+      'Path=/api/auth',
+      'Max-Age=0',
+      `Expires=${expireDate}`,
+      'HttpOnly',
+      'SameSite=Strict',
+    ];
+    if (isProduction) {
+      refreshCookieParts.push('Secure');
+    }
+    response.headers.append('Set-Cookie', refreshCookieParts.join('; '));
 
     // Also clear Supabase auth cookies via Set-Cookie headers as backup.
     // signOut() above clears them via cookieStore.set(), but on Netlify those
@@ -204,7 +229,17 @@ export async function GET(request: NextRequest) {
     path: '/',
   });
 
-  console.log('[Logout GET] Cleared cookie via Next.js cookies API');
+  // Clear refresh token cookie
+  cookieStore.set('bfeai_refresh', '', {
+    domain: cookieDomain,
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'strict',
+    maxAge: 0,
+    path: '/api/auth',
+  });
+
+  console.log('[Logout GET] Cleared SSO and refresh cookies via Next.js cookies API');
 
   // Method 2: Also add manual Set-Cookie header as backup
   const expireDate = 'Thu, 01 Jan 1970 00:00:00 GMT';

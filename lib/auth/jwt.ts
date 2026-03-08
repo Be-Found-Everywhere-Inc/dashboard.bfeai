@@ -181,6 +181,66 @@ export class JWTService {
   }
 
   /**
+   * Generate a refresh token tied to a session.
+   * Uses JWT_SECRET (same as SSO) with type: 'refresh' to distinguish.
+   * The JTI is used for rotation tracking — each refresh issues a new JTI.
+   */
+  static generateRefreshToken(
+    userId: string,
+    email: string,
+    role: string,
+    sessionId: string
+  ): { token: string; jti: string } {
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is not configured");
+    }
+
+    const jti = crypto.randomBytes(16).toString("hex");
+
+    const token = jwt.sign(
+      {
+        userId,
+        email,
+        role,
+        type: "refresh",
+        sessionId,
+        jti,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: this.REFRESH_TOKEN_EXPIRY,
+        issuer: "accounts.bfeai.com",
+      }
+    );
+
+    return { token, jti };
+  }
+
+  /**
+   * Verify a refresh token and extract its payload.
+   * Returns the payload including sessionId and jti for rotation checks.
+   */
+  static verifyRefreshTokenBySecret(token: string): JWTPayload & { type: string; sessionId: string } {
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is not configured");
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+        issuer: "accounts.bfeai.com",
+      }) as JWTPayload & { type: string; sessionId: string };
+
+      if (decoded.type !== "refresh") {
+        throw new Error("Token is not a refresh token");
+      }
+
+      return decoded;
+    } catch (error) {
+      throw new Error("Invalid or expired refresh token");
+    }
+  }
+
+  /**
    * Decode token without verification (use for reading payload only)
    */
   static decodeToken(token: string): JWTPayload | null {

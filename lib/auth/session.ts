@@ -31,28 +31,36 @@ export class SessionManager {
   }
 
   /**
-   * Create new session for user
-   * Returns SSO token to be set in cookie
+   * Create new session for user.
+   * Returns SSO token and refresh token for cookie storage.
+   * The refresh token JTI is stored in user_sessions for rotation tracking.
    */
   static async createSession(
     userId: string,
     email: string,
     role: string = "user"
-  ): Promise<string> {
+  ): Promise<{ ssoToken: string; refreshToken: string; sessionId: string }> {
     // Generate SSO token
-    const token = JWTService.generateSSOToken(userId, email, role);
+    const ssoToken = JWTService.generateSSOToken(userId, email, role);
 
-    // Store session in database for tracking
+    const sessionId = crypto.randomBytes(16).toString("hex");
+
+    // Generate refresh token tied to this session
+    const { token: refreshToken, jti: refreshJti } =
+      JWTService.generateRefreshToken(userId, email, role, sessionId);
+
+    // Store session in database with refresh token JTI for rotation
     const supabase = createAdminClient();
     await supabase.from("user_sessions").insert({
       user_id: userId,
-      session_id: crypto.randomBytes(16).toString("hex"),
+      session_id: sessionId,
+      refresh_jti: refreshJti,
       created_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       last_active: new Date().toISOString(),
     });
 
-    return token;
+    return { ssoToken, refreshToken, sessionId };
   }
 
   /**
