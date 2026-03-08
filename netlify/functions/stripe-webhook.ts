@@ -21,7 +21,7 @@ import {
   mergeTrialCredits,
   recalculateSubscriptionCap,
 } from "./utils/credits";
-import { getMonthlyCreditsForSubscription, getTrialCreditsForApp, getDualTrialAppKeys, findSubscriptionByPriceId, findSubscriptionPlan, DUAL_TRIAL_SETUP_FEE_PRICE_ID } from "../../config/plans";
+import { getMonthlyCreditsForSubscription, getTrialCreditsForApp, getDualTrialAppKeys, findSubscriptionByPriceId, findBundleByPriceId, findSubscriptionPlan, DUAL_TRIAL_SETUP_FEE_PRICE_ID } from "../../config/plans";
 import { sendTrialReminderEmail, sendWelcomeEmail } from "./utils/email";
 import type Stripe from "stripe";
 
@@ -120,8 +120,17 @@ function getAppKeysFromPriceIds(subscription: Stripe.Subscription): string[] {
   for (const item of subscription.items?.data ?? []) {
     const priceId = typeof item.price === "string" ? item.price : item.price?.id;
     if (priceId) {
+      // Check individual app plans first
       const plan = findSubscriptionByPriceId(priceId);
-      if (plan) appKeys.push(plan.appKey);
+      if (plan) {
+        appKeys.push(plan.appKey);
+        continue;
+      }
+      // Check bundle plans (one price covers multiple apps)
+      const bundle = findBundleByPriceId(priceId);
+      if (bundle) {
+        appKeys.push(...bundle.appKeys);
+      }
     }
   }
   return [...new Set(appKeys)];

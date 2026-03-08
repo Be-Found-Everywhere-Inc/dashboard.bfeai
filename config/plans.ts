@@ -126,6 +126,11 @@ export function findBundlePlan(slug: string): BundlePlan | undefined {
   return BUNDLE_PLANS.find((b) => b.slug === slug);
 }
 
+/** Find a bundle plan by its Stripe Price ID */
+export function findBundleByPriceId(priceId: string): BundlePlan | undefined {
+  return BUNDLE_PLANS.find((b) => b.stripePriceIdMonthly === priceId);
+}
+
 /** Dual trial $2 setup fee one-time price ID */
 export const DUAL_TRIAL_SETUP_FEE_PRICE_ID = getStripeEnv("STRIPE_PRICE_DUAL_TRIAL_SETUP_FEE");
 
