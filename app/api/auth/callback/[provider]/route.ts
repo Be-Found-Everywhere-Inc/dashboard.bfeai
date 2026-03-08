@@ -70,17 +70,6 @@ export async function GET(
     // SECURITY: Validate redirect URL against allowlist to prevent open redirects
     const redirect = isValidRedirect(rawRedirect) ? rawRedirect : '/';
 
-    // Debug logging for OAuth callback
-    console.log('[OAuth Callback] Request received:', {
-      provider,
-      hasCode: !!code,
-      redirect,
-      redirectFromCookie: !!redirectCookie,
-      requestUrl: request.url,
-      appUrl,
-      allSearchParams: Object.fromEntries(request.nextUrl.searchParams.entries()),
-    });
-
     // Check for OAuth error from provider
     if (error) {
       console.error(`[OAuth] Provider returned error: ${error}`);
@@ -106,17 +95,45 @@ export async function GET(
 
     const supabase = await createClient();
 
+    // Log which Supabase cookies are present for debugging PKCE issues
+    const supabaseProjectRef = (process.env.NEXT_PUBLIC_SUPABASE_URL || '')
+      .replace('https://', '')
+      .replace('.supabase.co', '');
+    const sbCookieBase = `sb-${supabaseProjectRef}-auth-token`;
+    const codeVerifierCookie = request.cookies.get(`${sbCookieBase}-code-verifier`);
+    const codeVerifierChunk0 = request.cookies.get(`${sbCookieBase}-code-verifier.0`);
+
+    console.log('[OAuth Callback] PKCE cookie check:', {
+      codeVerifierPresent: !!codeVerifierCookie,
+      codeVerifierChunk0Present: !!codeVerifierChunk0,
+      codeVerifierLength: codeVerifierCookie?.value?.length ?? 0,
+      allSupabaseCookies: request.cookies.getAll()
+        .filter(c => c.name.startsWith('sb-'))
+        .map(c => ({ name: c.name, len: c.value.length })),
+    });
+
     // Exchange code for session using Supabase
     const { data: { session }, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
 
     if (sessionError || !session) {
-      console.error('[OAuth] Session exchange failed:', sessionError);
+      console.error('[OAuth] Session exchange failed:', {
+        error: sessionError?.message,
+        errorName: sessionError?.name,
+        errorStatus: sessionError?.status,
+        hasCodeVerifier: !!codeVerifierCookie || !!codeVerifierChunk0,
+        provider,
+      });
       await logSecurityEvent(
         'OAUTH_SESSION_EXCHANGE_FAILED',
         'MEDIUM',
         null,
         request,
-        { provider, error: sessionError?.message }
+        {
+          provider,
+          error: sessionError?.message,
+          errorStatus: sessionError?.status,
+          hasCodeVerifier: !!codeVerifierCookie || !!codeVerifierChunk0,
+        }
       );
       return NextResponse.redirect(
         new URL('/login?error=oauth_session_failed', appUrl)

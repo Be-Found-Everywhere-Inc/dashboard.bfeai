@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     if (supabaseProjectRef) {
       const sbCookieBase = `sb-${supabaseProjectRef}-auth-token`;
       // Clear base cookie and chunked variants (Supabase uses .0, .1, etc.)
-      for (const suffix of ['', '.0', '.1', '.2', '.3', '-code-verifier']) {
+      for (const suffix of ['', '.0', '.1', '.2', '.3', '.4', '-code-verifier']) {
         const sbClearParts = [
           `${sbCookieBase}${suffix}=`,
           'Path=/',
@@ -241,7 +241,7 @@ export async function GET(request: NextRequest) {
     .replace('.supabase.co', '');
   if (supabaseProjectRef) {
     const sbCookieBase = `sb-${supabaseProjectRef}-auth-token`;
-    for (const suffix of ['', '.0', '.1', '.2', '.3', '-code-verifier']) {
+    for (const suffix of ['', '.0', '.1', '.2', '.3', '.4', '-code-verifier']) {
       const sbClearParts = [
         `${sbCookieBase}${suffix}=`,
         'Path=/',
