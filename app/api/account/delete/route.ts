@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: 'Invalid input', details: validation.error.flatten() },
+        { error: 'Invalid input. Password is required.' },
         { status: 400 }
       );
     }
