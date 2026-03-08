@@ -95,22 +95,13 @@ export async function GET(
 
     const supabase = await createClient();
 
-    // Log which Supabase cookies are present for debugging PKCE issues
+    // PKCE cookie references for error context
     const supabaseProjectRef = (process.env.NEXT_PUBLIC_SUPABASE_URL || '')
       .replace('https://', '')
       .replace('.supabase.co', '');
     const sbCookieBase = `sb-${supabaseProjectRef}-auth-token`;
     const codeVerifierCookie = request.cookies.get(`${sbCookieBase}-code-verifier`);
     const codeVerifierChunk0 = request.cookies.get(`${sbCookieBase}-code-verifier.0`);
-
-    console.log('[OAuth Callback] PKCE cookie check:', {
-      codeVerifierPresent: !!codeVerifierCookie,
-      codeVerifierChunk0Present: !!codeVerifierChunk0,
-      codeVerifierLength: codeVerifierCookie?.value?.length ?? 0,
-      allSupabaseCookies: request.cookies.getAll()
-        .filter(c => c.name.startsWith('sb-'))
-        .map(c => ({ name: c.name, len: c.value.length })),
-    });
 
     // Exchange code for session using Supabase
     const { data: { session }, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
@@ -198,15 +189,6 @@ export async function GET(
       profileUpdate.oauth_provider_id = oauthProviderId;
     }
 
-    console.log('[OAuth] Profile update data:', {
-      userId: user.id,
-      hasOAuthFullName: !!oauthFullName,
-      hasOAuthAvatarUrl: !!oauthAvatarUrl,
-      hasExistingProfile: !!existingProfile,
-      existingFullName: existingProfile?.full_name,
-      existingAvatarUrl: existingProfile?.avatar_url ? '[present]' : '[missing]',
-    });
-
     const { error: profileError } = await supabase
       .from('profiles')
       .upsert(profileUpdate, { onConflict: 'id' });
@@ -242,12 +224,6 @@ export async function GET(
       finalRedirect = new URL(redirect, appUrl).toString();
     }
 
-    console.log('[OAuth] Token generated, finalRedirect:', {
-      tokenLength: token?.length,
-      originalRedirect: redirect,
-      finalRedirect,
-    });
-
     // Clear the oauth_redirect cookie
     const isProduction = process.env.NODE_ENV === 'production';
     const cookieStore = await cookies();
@@ -269,8 +245,6 @@ export async function GET(
     const ssoCompleteUrl = new URL('/sso-complete', appUrl);
     ssoCompleteUrl.searchParams.set('token', token);
     ssoCompleteUrl.searchParams.set('redirect', finalRedirect);
-
-    console.log('[OAuth Callback] Successfully completed, redirecting to sso-complete page');
 
     return NextResponse.redirect(ssoCompleteUrl.toString());
   } catch (error) {

@@ -55,11 +55,6 @@ export async function POST(request: NextRequest) {
     const isProduction = process.env.NODE_ENV === 'production';
     const maxAge = 60 * 10; // 10 minutes - enough time to complete OAuth
 
-    console.log('[Set OAuth Redirect] Setting cookie:', {
-      redirect,
-      isProduction,
-    });
-
     // Manually construct Set-Cookie header for maximum compatibility
     const cookieParts = [
       `oauth_redirect=${encodeURIComponent(redirect)}`,
@@ -84,8 +79,6 @@ export async function POST(request: NextRequest) {
         },
       }
     );
-
-    console.log('[Set OAuth Redirect] Cookie set successfully');
 
     return response;
   } catch (error) {

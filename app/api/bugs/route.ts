@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         });
 
       if (uploadError) {
-        console.error('Screenshot upload failed:', uploadError.message);
+        console.error('[BugReport] Screenshot upload failed:', uploadError.message);
       } else {
         const { data: urlData } = await supabase.storage
           .from('bug-screenshots')
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         });
 
       if (uploadError) {
-        console.error('Console screenshot upload failed:', uploadError.message);
+        console.error('[BugReport] Console screenshot upload failed:', uploadError.message);
       } else {
         const { data: urlData } = await supabase.storage
           .from('bug-screenshots')
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
         });
 
       if (uploadError) {
-        console.error(`Attachment ${i} upload failed:`, uploadError.message);
+        console.error(`[BugReport] Attachment ${i} upload failed:`, uploadError.message);
       } else {
         const { data: urlData } = await supabase.storage
           .from('bug-screenshots')
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Bug report insert error:', error);
+      console.error('[BugReport] Insert failed:', error);
       return NextResponse.json({ error: 'Failed to submit bug report' }, { status: 500 });
     }
 
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: { id: data.id } });
   } catch (err) {
-    console.error('Bug report error:', err);
+    console.error('[BugReport] Unhandled error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -351,8 +351,6 @@ View in Dev Board: ${adminUrl}
   });
 
   if (error) {
-    console.error('[email] Resend bug notification error:', error);
-  } else {
-    console.log(`[email] Bug report notification sent for bug ${data.bugId}`);
+    console.error('[BugReport] Email notification failed:', error);
   }
 }
