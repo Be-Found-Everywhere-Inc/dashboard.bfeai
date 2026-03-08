@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-// Upstash rate limiter removed for password reset — Supabase Auth
-// already rate-limits /recover more aggressively (per-user email limits)
+import { checkRateLimit, getClientIp } from '@/lib/security/rate-limiter';
 
 const forgotPasswordSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -37,6 +36,17 @@ async function logSecurityEvent(
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 3 requests per 15 minutes per IP to prevent email bombing
+    const ip = getClientIp(request);
+    const rateLimit = await checkRateLimit('passwordReset', ip);
+    if (!rateLimit.success) {
+      await logSecurityEvent('PASSWORD_RESET_RATE_LIMITED', 'MEDIUM', null, request, { ip });
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before trying again.' },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const validation = forgotPasswordSchema.safeParse(body);
 

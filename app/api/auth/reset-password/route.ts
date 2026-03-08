@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { checkRateLimit, getClientIp } from '@/lib/security/rate-limiter';
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1).optional(),
@@ -44,6 +45,17 @@ async function logSecurityEvent(
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 attempts per 15 minutes per IP to prevent token brute-forcing
+    const ip = getClientIp(request);
+    const rateLimit = await checkRateLimit('resetPassword', ip);
+    if (!rateLimit.success) {
+      await logSecurityEvent('PASSWORD_RESET_BRUTE_FORCE', 'HIGH', null, request, { ip });
+      return NextResponse.json(
+        { error: 'Too many attempts. Please wait before trying again.' },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const validation = resetPasswordSchema.safeParse(body);
 

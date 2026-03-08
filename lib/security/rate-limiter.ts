@@ -46,13 +46,23 @@ export const rateLimiters = {
       })
     : null,
 
-  // Password reset: 10 attempts per hour per IP
+  // Password reset: 3 attempts per 15 minutes per IP
   passwordReset: redis
     ? new Ratelimit({
         redis,
-        limiter: Ratelimit.slidingWindow(10, "1 h"),
+        limiter: Ratelimit.slidingWindow(3, "15 m"),
         analytics: true,
         prefix: "ratelimit:password-reset",
+      })
+    : null,
+
+  // Reset password (token submission): 5 attempts per 15 minutes per IP
+  resetPassword: redis
+    ? new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(5, "15 m"),
+        analytics: true,
+        prefix: "ratelimit:reset-password",
       })
     : null,
 
