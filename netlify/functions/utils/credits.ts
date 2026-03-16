@@ -247,6 +247,28 @@ export const allocateSubscriptionCredits = async (
   referenceId?: string
 ): Promise<AllocateResult> => {
   await ensureUserCreditsRow(userId);
+
+  // Idempotency: skip if credits were already allocated for this app in the
+  // current billing window. Multiple webhook events (invoice.payment_succeeded
+  // + checkout.session.completed) may both attempt allocation for the same period.
+  if (referenceId) {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const { data: existing } = await supabaseAdmin
+      .from("credit_transactions")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("app_key", appKey)
+      .eq("type", "subscription_allocation")
+      .gte("created_at", fiveMinutesAgo)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      const balance = await getBalance(userId);
+      console.log(`[credits] Skipping duplicate allocation for ${appKey}, user ${userId} (ref: ${referenceId})`);
+      return { newBalance: balance.total, allocated: 0 };
+    }
+  }
+
   const balance = await getBalance(userId);
 
   // Calculate how much we can allocate without exceeding the cap

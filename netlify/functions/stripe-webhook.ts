@@ -232,11 +232,51 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     await allocateTrialCredits(userId, trialCredits, appKey, trialEndsAt, session.id);
     console.log(`[stripe-webhook] Allocated ${trialCredits} trial credits for ${appKey}, user ${userId}, expires ${trialEndsAt.toISOString()}`);
   } else if (metadataType === "bundle") {
-    // Bundle checkout — subscription sync handled by subscription.updated event
+    // Bundle checkout: allocate initial subscription credits.
+    // invoice.payment_succeeded may race ahead of this event when the user is
+    // still being provisioned, so we allocate here as the authoritative source.
+    const subscriptionId = typeof session.subscription === "string"
+      ? session.subscription
+      : (session.subscription as { id: string } | null)?.id;
+
+    if (subscriptionId) {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const bundleAppKeys = getAppKeysFromSubscription(subscription);
+
+      for (const appKey of bundleAppKeys) {
+        await syncAppSubscription(userId, subscription, appKey);
+        const monthlyCredits = getMonthlyCreditsForSubscription(appKey);
+        const { allocated } = await allocateSubscriptionCredits(
+          userId,
+          monthlyCredits,
+          appKey,
+          `${session.id}:${appKey}`
+        );
+        console.log(`[stripe-webhook] Bundle checkout: allocated ${allocated}/${monthlyCredits} credits for ${appKey}, user ${userId}`);
+      }
+      await recalculateSubscriptionCap(userId);
+    }
     console.log(`[stripe-webhook] Bundle checkout completed for user ${userId}`);
   } else {
-    // Subscription checkout — sync handled by subscription.updated event
+    // Single-app subscription checkout: allocate initial credits.
     const appKey = session.metadata?.app_key ?? "keywords";
+    const subscriptionId = typeof session.subscription === "string"
+      ? session.subscription
+      : (session.subscription as { id: string } | null)?.id;
+
+    if (subscriptionId) {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      await syncAppSubscription(userId, subscription, appKey);
+      const monthlyCredits = getMonthlyCreditsForSubscription(appKey);
+      const { allocated } = await allocateSubscriptionCredits(
+        userId,
+        monthlyCredits,
+        appKey,
+        `${session.id}:${appKey}`
+      );
+      console.log(`[stripe-webhook] Checkout: allocated ${allocated}/${monthlyCredits} credits for ${appKey}, user ${userId}`);
+      await recalculateSubscriptionCap(userId);
+    }
     console.log(`[stripe-webhook] Checkout completed for ${appKey} subscription, user ${userId}`);
   }
 
@@ -327,6 +367,21 @@ async function handlePaymentLinkCheckout(
         await allocateTrialCredits(userId, trialCredits, appKey, trialEndsAt, `plink_trial_${session.id}`);
       }
       console.log(`[stripe-webhook] Payment Link trial: allocated credits for user ${userId}, apps: ${appKeys.join(",")}, expires: ${trialEndsAt.toISOString()}`);
+    } else if (subscription.status === "active") {
+      // Active (non-trial) subscription: allocate subscription credits immediately.
+      // The invoice.payment_succeeded event may have already fired before the user
+      // was provisioned (race condition), so we allocate here as a safety net.
+      for (const appKey of appKeys) {
+        const monthlyCredits = getMonthlyCreditsForSubscription(appKey);
+        const { allocated } = await allocateSubscriptionCredits(
+          userId,
+          monthlyCredits,
+          appKey,
+          `plink_checkout_${session.id}:${appKey}`
+        );
+        console.log(`[stripe-webhook] Payment Link: allocated ${allocated}/${monthlyCredits} subscription credits for ${appKey}, user ${userId}`);
+      }
+      await recalculateSubscriptionCap(userId);
     }
 
     console.log(
