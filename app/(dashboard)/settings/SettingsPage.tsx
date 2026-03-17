@@ -97,15 +97,18 @@ export default function SettingsPageClient() {
 
   const fetchUserData = async () => {
     try {
-      const response = await fetch('/api/auth/session');
-      if (!response.ok) {
+      const [sessionResponse, profileResponse] = await Promise.all([
+        fetch('/api/auth/session'),
+        fetch('/api/profile'),
+      ]);
+
+      if (!sessionResponse.ok) {
         router.push('/login');
         return;
       }
 
-      const sessionData = await response.json();
+      const sessionData = await sessionResponse.json();
 
-      const profileResponse = await fetch('/api/profile');
       if (profileResponse.ok) {
         const profileData = await profileResponse.json();
 
