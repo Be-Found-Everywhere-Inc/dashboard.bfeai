@@ -6,6 +6,7 @@ import {
   Coins,
   CreditCard,
   FlaskConical,
+  Globe,
   Headphones,
   LayoutDashboard,
   LogOut,
@@ -48,7 +49,7 @@ export interface AppSidebarCredits {
 }
 
 export interface AppSidebarProps {
-  currentApp: "dashboard" | "keywords" | "labs";
+  currentApp: "dashboard" | "keywords" | "labs" | "offpage";
   /** Current pathname within the app (e.g. "/apps", "/credits"). Used for active-state highlighting on dashboard sub-pages. */
   pathname?: string;
   user: AppSidebarUser | null;
@@ -59,6 +60,7 @@ export interface AppSidebarProps {
   dashboardUrl?: string;
   keywordsUrl?: string;
   labsUrl?: string;
+  offpageUrl?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -68,6 +70,7 @@ export interface AppSidebarProps {
 const DEFAULT_DASHBOARD_URL = "https://dashboard.bfeai.com";
 const DEFAULT_KEYWORDS_URL = "https://keywords.bfeai.com";
 const DEFAULT_LABS_URL = "https://labs.bfeai.com";
+const DEFAULT_OFFPAGE_URL = "https://offpage.bfeai.com";
 
 /**
  * Resolve a link for a given target app + path.
@@ -140,6 +143,7 @@ export function AppSidebar({
   dashboardUrl = DEFAULT_DASHBOARD_URL,
   keywordsUrl = DEFAULT_KEYWORDS_URL,
   labsUrl = DEFAULT_LABS_URL,
+  offpageUrl = DEFAULT_OFFPAGE_URL,
 }: AppSidebarProps) {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -149,6 +153,7 @@ export function AppSidebar({
   const exploreHref = resolveHref(currentApp, "dashboard", dashboardUrl, "/apps");
   const kwHref = resolveHref(currentApp, "keywords", keywordsUrl, "/");
   const labsHref = resolveHref(currentApp, "labs", labsUrl, "/");
+  const offpageHref = resolveHref(currentApp, "offpage", offpageUrl, "/");
 
   // Footer links always live on the dashboard app
   const profileHref = resolveHref(currentApp, "dashboard", dashboardUrl, "/profile");
@@ -161,6 +166,7 @@ export function AppSidebar({
   const isExploreApps = currentApp === "dashboard" && pathname === "/apps";
   const isKeywords = currentApp === "keywords";
   const isLabs = currentApp === "labs";
+  const isOffpage = currentApp === "offpage";
 
   // Active-state detection for footer links (only on dashboard app)
   const isProfile = currentApp === "dashboard" && pathname === "/profile";
@@ -267,6 +273,27 @@ export function AppSidebar({
                   </TooltipTrigger>
                   <TooltipContent side="right" align="center">
                     Improve Your AI Visibility in Less than 60 seconds.
+                  </TooltipContent>
+                </Tooltip>
+              </SidebarMenuItem>
+
+              {/* OffPage Agent */}
+              <SidebarMenuItem>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isOffpage}
+                      className={isOffpage ? activeClass : undefined}
+                    >
+                      <NavLink href={offpageHref}>
+                        <Globe />
+                        <span>OffPage Agent</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" align="center">
+                    Automate Google Sites creation for off-page SEO.
                   </TooltipContent>
                 </Tooltip>
               </SidebarMenuItem>
