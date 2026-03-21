@@ -5,7 +5,7 @@
  * Each app has its own standalone subscription.
  */
 
-export type AppKey = 'keywords' | 'labs' | 'offpage';
+export type AppKey = 'keywords' | 'labs';
 
 export type AppStatus = 'active';
 
@@ -76,33 +76,9 @@ export const APP_CATALOG: Record<AppKey, AppConfig> = {
     },
     status: 'active',
   },
-  offpage: {
-    key: 'offpage',
-    name: 'OffPage Agent',
-    shortName: 'OffPage',
-    description: 'Automated Google Sites creation for off-page SEO',
-    longDescription: 'Automate Google Sites creation at scale targeting specific keywords and locations. Queue campaigns, monitor execution progress in real time, and manage connected Google accounts — all through browser automation.',
-    icon: 'Globe',
-    gradient: 'from-brand-teal to-brand-purple',
-    url: 'https://offpage.bfeai.com',
-    features: [
-      'Automated Google Sites creation',
-      'Campaign queue & execution',
-      'Real-time progress monitoring',
-      'Multi-account management',
-      'Browser session automation',
-      'Credit-based usage tracking',
-    ],
-    pricing: {
-      monthly: 29,
-      yearly: 290,
-      currency: 'USD',
-    },
-    status: 'active',
-  },
 };
 
-export const APP_ORDER: AppKey[] = ['keywords', 'labs', 'offpage'];
+export const APP_ORDER: AppKey[] = ['keywords', 'labs'];
 
 export const getActiveApps = (): AppConfig[] => {
   return APP_ORDER.map(key => APP_CATALOG[key]);
@@ -121,5 +97,5 @@ export const getAppByKey = (key: AppKey): AppConfig | undefined => {
  * Both apps are standalone with their own subscriptions
  */
 export const isAppIncludedInPlan = (appKey: AppKey, _planId?: string | null): boolean => {
-  return appKey === 'keywords' || appKey === 'labs' || appKey === 'offpage';
+  return appKey === 'keywords' || appKey === 'labs';
 };
