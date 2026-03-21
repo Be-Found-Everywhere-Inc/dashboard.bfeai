@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // Valid client IDs
-const VALID_CLIENTS = ['keywords', 'admin', 'labs', 'sma'] as const;
+const VALID_CLIENTS = ['keywords', 'admin', 'labs', 'sma', 'leads'] as const;
 type ClientId = typeof VALID_CLIENTS[number];
 
 // Get client secret from environment
@@ -15,6 +15,7 @@ function getClientSecret(clientId: ClientId): string | undefined {
     admin: 'SSO_CLIENT_SECRET_ADMIN',
     labs: 'SSO_CLIENT_SECRET_LABS',
     sma: 'SSO_CLIENT_SECRET_SMA',
+    leads: 'SSO_CLIENT_SECRET_LEADS',
   };
   return process.env[envKeys[clientId]];
 }
