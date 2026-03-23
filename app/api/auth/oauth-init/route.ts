@@ -46,11 +46,11 @@ export async function GET(request: NextRequest) {
 
     if (supabaseProjectRef) {
       const sbCookieBase = `sb-${supabaseProjectRef}-auth-token`;
-      // Clear base cookie, chunked variants (.0-.4), and stale code verifier
-      const staleSuffixes = ['', '.0', '.1', '.2', '.3', '.4', '-code-verifier'];
+      // Clear base cookie, chunked variants (.0-.9), and stale code verifier (+ chunks)
+      const staleSuffixes = ['', '.0', '.1', '.2', '.3', '.4', '.5', '.6', '.7', '.8', '.9',
+        '-code-verifier', '-code-verifier.0', '-code-verifier.1', '-code-verifier.2'];
       for (const suffix of staleSuffixes) {
         const cookieName = `${sbCookieBase}${suffix}`;
-        // Only clear if the cookie actually exists in the request
         if (cookieStore.get(cookieName)) {
           cookiesToSet.push({
             name: cookieName,
@@ -70,24 +70,18 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
+          getAll() {
+            return cookieStore.getAll();
           },
-          set(name: string, value: string, options: CookieOptions) {
-            cookiesToSet.push({ name, value, options });
-            try {
-              cookieStore.set({ name, value, ...options });
-            } catch {
-              // ignore — will be set on the response below
-            }
-          },
-          remove(name: string, options: CookieOptions) {
-            cookiesToSet.push({ name, value: '', options: { ...options, maxAge: 0 } });
-            try {
-              cookieStore.set({ name, value: '', ...options });
-            } catch {
-              // ignore
-            }
+          setAll(cookies) {
+            cookies.forEach(({ name, value, options }) => {
+              cookiesToSet.push({ name, value, options: options || {} });
+              try {
+                cookieStore.set(name, value, options);
+              } catch {
+                // ignore — will be set on the response below
+              }
+            });
           },
         },
       }
