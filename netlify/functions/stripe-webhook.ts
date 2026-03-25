@@ -259,25 +259,48 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     console.log(`[stripe-webhook] Bundle checkout completed for user ${userId}`);
   } else {
     // Single-app subscription checkout: allocate initial credits.
-    const appKey = session.metadata?.app_key ?? "keywords";
+    const sessionAppKey = session.metadata?.app_key ?? "keywords";
     const subscriptionId = typeof session.subscription === "string"
       ? session.subscription
       : (session.subscription as { id: string } | null)?.id;
 
     if (subscriptionId) {
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      await syncAppSubscription(userId, subscription, appKey);
-      const monthlyCredits = getMonthlyCreditsForSubscription(appKey);
-      const { allocated } = await allocateSubscriptionCredits(
-        userId,
-        monthlyCredits,
-        appKey,
-        `${session.id}:${appKey}`
-      );
-      console.log(`[stripe-webhook] Checkout: allocated ${allocated}/${monthlyCredits} credits for ${appKey}, user ${userId}`);
+
+      // The subscription itself may be a bundle even if the session metadata
+      // only carried a single app_key (e.g. session created before bundle
+      // metadata was set). Check subscription metadata as the source of truth.
+      const actualAppKeys = getAppKeysFromSubscription(subscription);
+      const isActuallyBundle = actualAppKeys.length >= 2;
+
+      if (isActuallyBundle) {
+        console.log(`[stripe-webhook] Session metadata said single-app but subscription is bundle — syncing all apps: ${actualAppKeys.join(",")}`);
+        for (const appKey of actualAppKeys) {
+          await syncAppSubscription(userId, subscription, appKey);
+          const monthlyCredits = getMonthlyCreditsForSubscription(appKey);
+          const { allocated } = await allocateSubscriptionCredits(
+            userId,
+            monthlyCredits,
+            appKey,
+            `${session.id}:${appKey}`
+          );
+          console.log(`[stripe-webhook] Checkout (bundle recovery): allocated ${allocated}/${monthlyCredits} credits for ${appKey}, user ${userId}`);
+        }
+      } else {
+        await syncAppSubscription(userId, subscription, sessionAppKey);
+        const monthlyCredits = getMonthlyCreditsForSubscription(sessionAppKey);
+        const { allocated } = await allocateSubscriptionCredits(
+          userId,
+          monthlyCredits,
+          sessionAppKey,
+          `${session.id}:${sessionAppKey}`
+        );
+        console.log(`[stripe-webhook] Checkout: allocated ${allocated}/${monthlyCredits} credits for ${sessionAppKey}, user ${userId}`);
+      }
       await recalculateSubscriptionCap(userId);
     }
-    console.log(`[stripe-webhook] Checkout completed for ${appKey} subscription, user ${userId}`);
+    const logAppKey = subscriptionId ? "see above" : sessionAppKey;
+    console.log(`[stripe-webhook] Checkout completed for ${logAppKey} subscription, user ${userId}`);
   }
 
   // --- Beta tester auto-tagging via promo code ---
