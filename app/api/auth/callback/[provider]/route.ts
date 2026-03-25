@@ -39,7 +39,7 @@ export async function GET(
   { params }: { params: Promise<{ provider: string }> }
 ) {
   // Use production URL for all redirects to avoid Netlify deploy URL issues
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://accounts.bfeai.com';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://dashboard.bfeai.com';
 
   try {
     const { provider: providerParam } = await params;
@@ -257,7 +257,7 @@ export async function GET(
     return NextResponse.redirect(ssoCompleteUrl.toString());
   } catch (error) {
     console.error('[OAuth] Callback error:', error);
-    const fallbackAppUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://accounts.bfeai.com';
+    const fallbackAppUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://dashboard.bfeai.com';
     await logSecurityEvent(
       'OAUTH_ERROR',
       'HIGH',

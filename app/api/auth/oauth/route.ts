@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       : redirectParam;
 
     // Get the app URL for callback - use production URL as fallback
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://accounts.bfeai.com';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://dashboard.bfeai.com';
 
     console.log('[OAuth] Initiating OAuth flow:', {
       provider,

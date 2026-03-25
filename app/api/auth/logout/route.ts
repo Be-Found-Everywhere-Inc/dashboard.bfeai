@@ -226,7 +226,13 @@ export async function GET(request: NextRequest) {
   console.log('[Logout GET] Also adding manual Set-Cookie header:', setCookieValue);
 
   // Redirect to login page with message
-  const loginUrl = new URL('/login', 'https://accounts.bfeai.com');
+  // IMPORTANT: Must use NEXT_PUBLIC_APP_URL (dashboard.bfeai.com), NOT accounts.bfeai.com.
+  // accounts.bfeai.com is a legacy domain alias. If the user lands on accounts.bfeai.com
+  // and then initiates OAuth, the PKCE code verifier cookie is set on accounts.bfeai.com,
+  // but the OAuth callback runs on dashboard.bfeai.com — different origin, cookie missing,
+  // exchangeCodeForSession fails with "oauth_session_failed".
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://dashboard.bfeai.com';
+  const loginUrl = new URL('/login', appUrl);
   loginUrl.searchParams.set('message', 'logged_out');
 
   // Create redirect response

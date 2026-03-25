@@ -13,7 +13,7 @@ import { createClient } from '@/lib/supabase/server';
  * After verification, redirects to the `next` param (defaults to /reset-password for recovery).
  */
 export async function GET(request: NextRequest) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://accounts.bfeai.com';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://dashboard.bfeai.com';
 
   const tokenHash = request.nextUrl.searchParams.get('token_hash');
   const type = request.nextUrl.searchParams.get('type') as
