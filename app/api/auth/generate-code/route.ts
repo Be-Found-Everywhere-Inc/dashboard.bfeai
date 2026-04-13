@@ -8,7 +8,9 @@ import { JWTService } from '@/lib/auth/jwt';
 import crypto from 'crypto';
 
 // Valid client IDs for BFEAI apps
-const VALID_CLIENTS = ['keywords', 'admin', 'labs', 'sma', 'leads'] as const;
+// Note: 'testing' is the persistent testing.grounds.bfeai.com test-deploy target,
+// gated to @bfeai.com emails below (see step 4.5).
+const VALID_CLIENTS = ['keywords', 'admin', 'labs', 'sma', 'leads', 'testing'] as const;
 type ClientId = typeof VALID_CLIENTS[number];
 
 // Redirect URI patterns for each client
@@ -18,6 +20,7 @@ const VALID_REDIRECT_PATTERNS: Record<ClientId, RegExp> = {
   labs: /^https:\/\/labs\.bfeai\.com/,
   sma: /^https:\/\/sma\.bfeai\.com/,
   leads: /^https:\/\/leads\.bfeai\.com/,
+  testing: /^https:\/\/testing\.grounds\.bfeai\.com/,
 };
 
 // Development patterns (localhost)
@@ -27,6 +30,7 @@ const DEV_REDIRECT_PATTERNS: Record<ClientId, RegExp> = {
   labs: /^http:\/\/localhost:(3000|3001|3002|3003)/,
   sma: /^http:\/\/localhost:(3000|3001|3002|3003|3004)/,
   leads: /^http:\/\/localhost:(3000|3001|3002|3003|3004|3005|3006)/,
+  testing: /^http:\/\/localhost:(3000|3001|3002|3003|3004|3005|3006|3007)/,
 };
 
 // Code expiry in seconds (30 seconds for security)
@@ -96,6 +100,23 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid client_id' },
         { status: 400 }
       );
+    }
+
+    // 4.5. Testing grounds gate: only @bfeai.com emails can access client_id='testing'.
+    // Placed at dashboard level (not in the test app) so it survives repo wipes when
+    // testing.grounds.bfeai is repopulated with new code for future debug cycles.
+    if (client_id === 'testing') {
+      const email = (payload.email || '').toLowerCase();
+      if (!email.endsWith('@bfeai.com')) {
+        console.warn('[GenerateCode] Non-@bfeai.com email blocked from testing grounds:', {
+          userId: payload.userId,
+          emailDomain: email.split('@')[1] || 'unknown',
+        });
+        return NextResponse.json(
+          { error: 'Access to testing grounds is restricted to @bfeai.com emails' },
+          { status: 403 }
+        );
+      }
     }
 
     // 5. Validate redirect_uri
