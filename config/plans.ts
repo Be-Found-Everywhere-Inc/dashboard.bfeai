@@ -64,13 +64,13 @@ export const LABS_AEO_SUBSCRIPTION = {
   stripePriceIdYearly: getStripeEnv("STRIPE_PRICE_LABS_AEO_YEARLY"),
 } as const;
 
-/** OffPage Agent: $29/mo, 300 credits, caps at 900 */
+/** OffPage Agent: $49/mo, 500 credits, caps at 1500 */
 export const OFFPAGE_SUBSCRIPTION = {
   appKey: "offpage",
   tier: "standard",
-  monthlyPrice: 29,
-  monthlyCredits: 300,
-  creditCap: 900,
+  monthlyPrice: 49,
+  monthlyCredits: 500,
+  creditCap: 1500,
   stripePriceIdMonthly: getStripeEnv("STRIPE_PRICE_OFFPAGE_MONTHLY"),
   stripePriceIdYearly: getStripeEnv("STRIPE_PRICE_OFFPAGE_YEARLY"),
 } as const;
