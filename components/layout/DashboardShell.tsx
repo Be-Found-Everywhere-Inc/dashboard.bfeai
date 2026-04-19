@@ -9,6 +9,7 @@ import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
+  hasOffpageBetaAccess,
 } from '@bfeai/ui';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { BugReportWidget } from '@/components/bug-report/BugReportWidget';
@@ -18,6 +19,7 @@ interface UserData {
   email: string;
   fullName?: string;
   avatarUrl?: string;
+  userTier?: string;
 }
 
 interface DashboardShellProps {
@@ -60,6 +62,7 @@ function DashboardContent({
         onLogout={handleSignOut}
         isLoggingOut={isLoggingOut}
         themeToggle={<ThemeToggle size="sm" syncToCookie compact />}
+        showOffpage={hasOffpageBetaAccess({ user_tier: user?.userTier })}
       />
 
       {/* Main Content */}
@@ -126,6 +129,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
           email: sessionData.user.email,
           fullName: profileData.full_name,
           avatarUrl: profileData.avatar_url,
+          userTier: profileData.user_tier,
         });
       } else {
         setUser({
