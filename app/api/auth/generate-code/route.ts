@@ -10,7 +10,7 @@ import crypto from 'crypto';
 // Valid client IDs for BFEAI apps
 // Note: 'testing' is the persistent testing.grounds.bfeai.com test-deploy target,
 // gated to @bfeai.com emails below (see step 4.5).
-const VALID_CLIENTS = ['keywords', 'admin', 'labs', 'sma', 'leads', 'testing'] as const;
+const VALID_CLIENTS = ['keywords', 'admin', 'labs', 'sma', 'leads', 'offpage', 'testing'] as const;
 type ClientId = typeof VALID_CLIENTS[number];
 
 // Redirect URI patterns for each client
@@ -20,6 +20,7 @@ const VALID_REDIRECT_PATTERNS: Record<ClientId, RegExp> = {
   labs: /^https:\/\/labs\.bfeai\.com/,
   sma: /^https:\/\/sma\.bfeai\.com/,
   leads: /^https:\/\/leads\.bfeai\.com/,
+  offpage: /^https:\/\/offpage\.bfeai\.com/,
   testing: /^https:\/\/testing\.grounds\.bfeai\.com/,
 };
 
@@ -30,6 +31,7 @@ const DEV_REDIRECT_PATTERNS: Record<ClientId, RegExp> = {
   labs: /^http:\/\/localhost:(3000|3001|3002|3003)/,
   sma: /^http:\/\/localhost:(3000|3001|3002|3003|3004)/,
   leads: /^http:\/\/localhost:(3000|3001|3002|3003|3004|3005|3006)/,
+  offpage: /^http:\/\/localhost:3005/,
   testing: /^http:\/\/localhost:(3000|3001|3002|3003|3004|3005|3006|3007)/,
 };
 
