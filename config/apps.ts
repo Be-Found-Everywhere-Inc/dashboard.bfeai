@@ -5,7 +5,18 @@
  * Each app has its own standalone subscription.
  */
 
-import { hasOffpageBetaAccess } from '@bfeai/ui';
+// Inlined here (rather than imported from @bfeai/ui) because this module is
+// loaded by server-side / public routes (e.g. /try/[appKey]); importing the
+// @bfeai/ui barrel pulls in client-only React Context code and breaks the
+// production build. Sidebar consumers (client components) still use the
+// canonical export from @bfeai/ui — keep these two definitions in sync.
+const BETA_ELIGIBLE_TIERS = new Set(['beta_tester', 'founder', 'test_account']);
+function hasOffpageBetaAccess(user?: { user_tier?: string | null } | null): boolean {
+  if (!user || typeof user !== 'object') return false;
+  const tier = user.user_tier;
+  if (!tier) return false;
+  return BETA_ELIGIBLE_TIERS.has(tier);
+}
 
 export type AppKey = 'keywords' | 'labs' | 'offpage';
 
