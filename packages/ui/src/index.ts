@@ -1,3 +1,6 @@
+// Auth helpers
+export { hasOffpageBetaAccess } from "./auth/beta-access";
+
 // Utilities
 export { cn } from "./lib/utils";
 
