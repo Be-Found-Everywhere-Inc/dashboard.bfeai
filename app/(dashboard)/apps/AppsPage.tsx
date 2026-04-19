@@ -8,11 +8,12 @@ import {
   Check,
   Search,
   FlaskConical,
+  Globe,
   ExternalLink,
   Zap,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button } from "@bfeai/ui";
-import { APP_CATALOG, APP_ORDER, type AppConfig, type AppKey } from "@/config/apps";
+import { APP_CATALOG, getActiveApps, type AppConfig, type AppKey } from "@/config/apps";
 import { useBilling } from "@/hooks/useBilling";
 import { AppUpsellModal } from "@/components/billing/AppUpsellModal";
 import { toast } from "@bfeai/ui";
@@ -20,6 +21,7 @@ import { toast } from "@bfeai/ui";
 const ICON_MAP: Record<string, React.ElementType> = {
   Search,
   FlaskConical,
+  Globe,
 };
 
 export function AppsPage() {
@@ -40,6 +42,17 @@ export function AppsPage() {
   const [selectedApp, setSelectedApp] = useState<AppKey | null>(null);
   const [trialRedirecting, setTrialRedirecting] = useState(false);
   const [trialAttempted, setTrialAttempted] = useState(false);
+  const [userTier, setUserTier] = useState<string | null>(null);
+
+  // Fetch user_tier so the beta-access gate can filter the app list
+  useEffect(() => {
+    fetch('/api/profile')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.user_tier) setUserTier(data.user_tier as string);
+      })
+      .catch(() => {});
+  }, []);
 
   // Auto-trigger trial checkout when ?trial=true&app=X is in URL
   useEffect(() => {
@@ -129,7 +142,8 @@ export function AppsPage() {
     }
   };
 
-  const hasAvailableApp = APP_ORDER.some((key) => getAppStatus(APP_CATALOG[key]) === 'available');
+  const visibleApps = getActiveApps({ user_tier: userTier });
+  const hasAvailableApp = visibleApps.some((app) => getAppStatus(app) === 'available');
 
   // Show loading state while auto-triggering trial checkout
   if (trialRedirecting) {
@@ -245,8 +259,7 @@ export function AppsPage() {
 
       {/* Apps Grid */}
       <div className="grid gap-6 md:grid-cols-2">
-        {APP_ORDER.map((key, i) => {
-          const app = APP_CATALOG[key];
+        {visibleApps.map((app, i) => {
           const status = getAppStatus(app);
           const IconComponent = ICON_MAP[app.icon] || Sparkles;
 
