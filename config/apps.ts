@@ -5,9 +5,11 @@
  * Each app has its own standalone subscription.
  */
 
-export type AppKey = 'keywords' | 'labs';
+import { hasOffpageBetaAccess } from '@bfeai/ui';
 
-export type AppStatus = 'active';
+export type AppKey = 'keywords' | 'labs' | 'offpage';
+
+export type AppStatus = 'active' | 'beta';
 
 export interface AppConfig {
   key: AppKey;
@@ -15,7 +17,7 @@ export interface AppConfig {
   shortName: string;
   description: string;
   longDescription: string;
-  icon: string; // Lucide icon name
+  icon: string;
   gradient: string;
   url: string;
   features: string[];
@@ -25,6 +27,11 @@ export interface AppConfig {
     currency: string;
   };
   status: AppStatus;
+  /**
+   * If true, this app is only visible to users for whom the gate function
+   * (applied in getActiveApps / isAppIncludedInPlan) returns true.
+   */
+  betaOnly?: boolean;
 }
 
 export const APP_CATALOG: Record<AppKey, AppConfig> = {
@@ -76,14 +83,50 @@ export const APP_CATALOG: Record<AppKey, AppConfig> = {
     },
     status: 'active',
   },
+  offpage: {
+    key: 'offpage',
+    name: 'OffPage Agent',
+    shortName: 'OffPage',
+    description: 'Automated Google Sites creation for off-page SEO',
+    longDescription: 'Automate Google Sites creation at scale targeting specific keywords and locations. Queue campaigns, monitor execution progress in real time, and manage connected Google accounts — all through browser automation.',
+    icon: 'Globe',
+    gradient: 'from-brand-teal to-brand-purple',
+    url: 'https://offpage.bfeai.com',
+    features: [
+      'Automated Google Sites creation',
+      'Campaign queue & execution',
+      'Real-time progress monitoring',
+      'Multi-account management',
+      'Browser session automation',
+      'Credit-based usage tracking',
+    ],
+    pricing: {
+      monthly: 49,
+      yearly: 490,
+      currency: 'USD',
+    },
+    status: 'beta',
+    betaOnly: true,
+  },
 };
 
-export const APP_ORDER: AppKey[] = ['keywords', 'labs'];
+export const APP_ORDER: AppKey[] = ['keywords', 'labs', 'offpage'];
 
-export const getActiveApps = (): AppConfig[] => {
-  return APP_ORDER.map(key => APP_CATALOG[key]);
+/**
+ * Filter apps based on user access.
+ * Beta-only apps require the appropriate access gate.
+ */
+export const getActiveApps = (user?: { user_tier?: string | null } | null): AppConfig[] => {
+  return APP_ORDER
+    .map(key => APP_CATALOG[key])
+    .filter(app => {
+      if (!app.betaOnly) return true;
+      if (app.key === 'offpage') return hasOffpageBetaAccess(user);
+      return false;
+    });
 };
 
+/** Returns the full catalog regardless of user access. Use for admin/internal views only. */
 export const getAllApps = (): AppConfig[] => {
   return APP_ORDER.map(key => APP_CATALOG[key]);
 };
@@ -93,9 +136,16 @@ export const getAppByKey = (key: AppKey): AppConfig | undefined => {
 };
 
 /**
- * Check if an app is included in the user's current plan
- * Both apps are standalone with their own subscriptions
+ * Check if an app is included in the user's current plan.
+ * - keywords/labs: standalone, always "included" (user just needs to subscribe).
+ * - offpage: beta-only, included if user has beta access.
  */
-export const isAppIncludedInPlan = (appKey: AppKey, _planId?: string | null): boolean => {
-  return appKey === 'keywords' || appKey === 'labs';
+export const isAppIncludedInPlan = (
+  appKey: AppKey,
+  _planId?: string | null,
+  user?: { user_tier?: string | null } | null,
+): boolean => {
+  if (appKey === 'keywords' || appKey === 'labs') return true;
+  if (appKey === 'offpage') return hasOffpageBetaAccess(user);
+  return false;
 };

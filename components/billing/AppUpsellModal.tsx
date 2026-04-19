@@ -26,6 +26,10 @@ import {
   History,
   Clock,
   Bell,
+  Globe,
+  Layers,
+  Shield,
+  Activity,
 } from "lucide-react";
 import {
   Dialog,
@@ -210,11 +214,37 @@ const UPSELL_DATA: Record<AppKey, AppUpsellData> = {
       },
     ],
   },
+  offpage: {
+    sellingPoints: [
+      {
+        icon: Globe,
+        title: "Google Sites at Scale",
+        description: "Automate creation of keyword-targeted Google Sites for off-page SEO.",
+      },
+      {
+        icon: Layers,
+        title: "Campaign Queue",
+        description: "Draft, queue, and monitor campaigns with real-time progress tracking.",
+      },
+      {
+        icon: Shield,
+        title: "Multi-Account Management",
+        description: "Connect multiple Google accounts with automatic preflight checks.",
+      },
+      {
+        icon: Activity,
+        title: "Live Execution Logs",
+        description: "Watch step-by-step execution logs as your campaigns run.",
+      },
+    ],
+    slides: [],
+  },
 };
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Search,
   FlaskConical,
+  Globe,
 };
 
 // Per-slide visual variants — same app colors, different compositions
