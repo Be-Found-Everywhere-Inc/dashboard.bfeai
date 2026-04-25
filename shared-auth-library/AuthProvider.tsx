@@ -203,11 +203,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       clearSessionToken();
-      window.location.href = `${getAccountsUrl()}/api/auth/logout`;
+      window.location.href = `${getAccountsUrl()}/logout`;
     } catch (error) {
       console.error("Logout error:", error);
       clearSessionToken();
-      window.location.href = `${getAccountsUrl()}/api/auth/logout`;
+      window.location.href = `${getAccountsUrl()}/logout`;
     }
   }, [supabase]);
 
