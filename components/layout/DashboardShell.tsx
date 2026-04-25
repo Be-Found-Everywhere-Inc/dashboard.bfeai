@@ -147,7 +147,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const handleSignOut = async () => {
     setIsLoggingOut(true);
     try {
-      const response = await fetch('/api/auth/logout', {
+      const response = await fetch('/.netlify/functions/auth-logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
