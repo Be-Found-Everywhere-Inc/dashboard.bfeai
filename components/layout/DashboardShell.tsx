@@ -151,13 +151,14 @@ export function DashboardShell({ children }: DashboardShellProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
-      if (response.ok) {
-        router.push('/login');
+      if (!response.ok) {
+        console.error('Logout request failed:', response.status, await response.text().catch(() => ''));
       }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
       setIsLoggingOut(false);
+      router.push('/login');
     }
   };
 
