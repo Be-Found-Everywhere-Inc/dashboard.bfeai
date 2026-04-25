@@ -29,7 +29,7 @@ function LogoutHandler() {
     async function performLogout() {
       try {
         // Call the logout API
-        const response = await fetch('/api/auth/logout', {
+        const response = await fetch('/.netlify/functions/auth-logout', {
           method: 'POST',
           credentials: 'include',
         });
