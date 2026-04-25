@@ -56,9 +56,15 @@ const buildAllClearCookies = (): string[] => {
 
   // Supabase auth-token cookies (and chunked variants). Host-only cookies
   // on dashboard.bfeai.com — no Domain attribute.
+  //
+  // @supabase/ssr derives storageKey from the FIRST dot-segment of the URL
+  // hostname, NOT the full hostname-minus-suffix. So for a custom Supabase
+  // domain like https://admin.befoundeverywhere.com the actual cookies are
+  // sb-admin-auth-token.0/.1/... (not sb-admin.befoundeverywhere.com-...).
+  // Use split('.')[0] to match what the SDK actually does.
   const supabaseProjectRef = (process.env.NEXT_PUBLIC_SUPABASE_URL || "")
-    .replace("https://", "")
-    .replace(".supabase.co", "");
+    .replace(/^https?:\/\//, "")
+    .split(".")[0];
   if (supabaseProjectRef) {
     const sbBase = `sb-${supabaseProjectRef}-auth-token`;
     for (const suffix of ["", ".0", ".1", ".2", ".3", ".4", "-code-verifier"]) {
