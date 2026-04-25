@@ -125,8 +125,9 @@ export const handler = withErrorHandling(async (event): Promise<HandlerResponse>
   const cookies = parseCookies(event.headers.cookie);
   const userId = decodeUserIdFromBfeaiSession(cookies["bfeai_session"]);
 
-  // Best-effort security log — never blocks the cookie-clearing response.
-  await logLogoutEvent(event.headers, userId);
+  // Best-effort security log — fire and forget so a slow Supabase insert
+  // never delays the cookie-clearing response.
+  void logLogoutEvent(event.headers, userId);
 
   const setCookieValues = buildAllClearCookies();
 
