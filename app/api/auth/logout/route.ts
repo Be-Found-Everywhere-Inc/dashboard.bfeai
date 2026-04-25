@@ -1,6 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+
+/**
+ * Clear all auth cookies on a NextResponse.
+ *
+ * Why this helper exists: the previous implementation used
+ *   `new NextResponse(JSON.stringify(...), { headers: {...} })`
+ * combined with `response.headers.append('Set-Cookie', ...)`. That pattern
+ * silently drops Set-Cookie headers in the Netlify + @netlify/plugin-nextjs
+ * pipeline — the response reaches the browser with no Set-Cookie at all,
+ * so bfeai_session is never cleared and users stay "logged in" after
+ * clicking Log out.
+ *
+ * NextResponse.cookies.set() goes through Next.js's ResponseCookies layer,
+ * which Netlify forwards correctly. Use this helper for every endpoint
+ * that needs to clear session state.
+ */
+function clearAuthCookies(response: NextResponse): void {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const cookieDomain = '.bfeai.com';
+
+  // Clear the SSO cookie. Attributes must match how login set it
+  // (lib/auth/cookies.ts setSessionCookie) so the browser matches and deletes.
+  response.cookies.set('bfeai_session', '', {
+    domain: cookieDomain,
+    path: '/',
+    maxAge: 0,
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+  });
+
+  // Clear Supabase auth token cookies (and their chunked variants).
+  // signOut() above invalidates the server session; this removes the
+  // browser-side cookies so they can't be replayed.
+  const supabaseProjectRef = (process.env.NEXT_PUBLIC_SUPABASE_URL || '')
+    .replace('https://', '')
+    .replace('.supabase.co', '');
+  if (supabaseProjectRef) {
+    const sbCookieBase = `sb-${supabaseProjectRef}-auth-token`;
+    const suffixes = ['', '.0', '.1', '.2', '.3', '.4', '-code-verifier'];
+    for (const suffix of suffixes) {
+      response.cookies.set(`${sbCookieBase}${suffix}`, '', {
+        path: '/',
+        maxAge: 0,
+        sameSite: 'lax',
+        secure: isProduction,
+      });
+    }
+  }
+}
 
 /**
  * Internal helper to log security events
@@ -63,84 +112,11 @@ export async function POST(request: NextRequest) {
       { logout_time: new Date().toISOString() }
     );
 
-    const isProduction = process.env.NODE_ENV === 'production';
-    const cookieDomain = '.bfeai.com';
-
-    // Method 1: Use Next.js cookies API (same method as login route sets the cookie)
-    // This is more reliable and consistent with how the cookie was originally set
-    const cookieStore = await cookies();
-
-    // Delete the cookie using the same domain it was set with
-    cookieStore.set('bfeai_session', '', {
-      domain: cookieDomain,
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
-      maxAge: 0,  // Immediately expire
-      path: '/',
+    const response = NextResponse.json({
+      success: true,
+      message: 'Logged out successfully',
     });
-
-    console.log('[Logout] Cleared cookie via Next.js cookies API');
-
-    // Method 2: Also add manual Set-Cookie header as backup
-    // Use BOTH Max-Age=0 AND Expires for maximum browser compatibility
-    const expireDate = 'Thu, 01 Jan 1970 00:00:00 GMT';
-
-    const cookieParts = [
-      'bfeai_session=',
-      `Domain=${cookieDomain}`,
-      'Path=/',
-      'Max-Age=0',
-      `Expires=${expireDate}`,
-      'HttpOnly',
-      'SameSite=Lax',
-    ];
-    if (isProduction) {
-      cookieParts.push('Secure');
-    }
-    const setCookieValue = cookieParts.join('; ');
-
-    console.log('[Logout] Also adding manual Set-Cookie header:', setCookieValue);
-
-    // Create response
-    const response = new NextResponse(
-      JSON.stringify({ success: true, message: 'Logged out successfully' }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    // Append manual header as additional backup
-    response.headers.append('Set-Cookie', setCookieValue);
-
-    // Also clear Supabase auth cookies via Set-Cookie headers as backup.
-    // signOut() above clears them via cookieStore.set(), but on Netlify those
-    // may not transfer to manually constructed NextResponse objects.
-    const supabaseProjectRef = (process.env.NEXT_PUBLIC_SUPABASE_URL || '')
-      .replace('https://', '')
-      .replace('.supabase.co', '');
-    if (supabaseProjectRef) {
-      const sbCookieBase = `sb-${supabaseProjectRef}-auth-token`;
-      // Clear base cookie and chunked variants (Supabase uses .0, .1, etc.)
-      for (const suffix of ['', '.0', '.1', '.2', '.3', '.4', '-code-verifier']) {
-        const sbClearParts = [
-          `${sbCookieBase}${suffix}=`,
-          'Path=/',
-          'Max-Age=0',
-          `Expires=${expireDate}`,
-          'SameSite=Lax',
-        ];
-        if (isProduction) {
-          sbClearParts.push('Secure');
-        }
-        response.headers.append('Set-Cookie', sbClearParts.join('; '));
-      }
-      console.log('[Logout] Also clearing Supabase auth cookies via Set-Cookie headers');
-    }
-
+    clearAuthCookies(response);
     return response;
   } catch (error) {
     console.error('[Logout] Error:', error);
@@ -190,42 +166,6 @@ export async function GET(request: NextRequest) {
     console.error('[Logout GET] Error during logout:', error);
   }
 
-  const isProduction = process.env.NODE_ENV === 'production';
-  const cookieDomain = '.bfeai.com';
-
-  // Method 1: Use Next.js cookies API (same method as login route sets the cookie)
-  const cookieStore = await cookies();
-  cookieStore.set('bfeai_session', '', {
-    domain: cookieDomain,
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax',
-    maxAge: 0,
-    path: '/',
-  });
-
-  console.log('[Logout GET] Cleared cookie via Next.js cookies API');
-
-  // Method 2: Also add manual Set-Cookie header as backup
-  const expireDate = 'Thu, 01 Jan 1970 00:00:00 GMT';
-
-  const cookieParts = [
-    'bfeai_session=',
-    `Domain=${cookieDomain}`,
-    'Path=/',
-    'Max-Age=0',
-    `Expires=${expireDate}`,
-    'HttpOnly',
-    'SameSite=Lax',
-  ];
-  if (isProduction) {
-    cookieParts.push('Secure');
-  }
-  const setCookieValue = cookieParts.join('; ');
-
-  console.log('[Logout GET] Also adding manual Set-Cookie header:', setCookieValue);
-
-  // Redirect to login page with message
   // IMPORTANT: Must use NEXT_PUBLIC_APP_URL (dashboard.bfeai.com), NOT accounts.bfeai.com.
   // accounts.bfeai.com is a legacy domain alias. If the user lands on accounts.bfeai.com
   // and then initiates OAuth, the PKCE code verifier cookie is set on accounts.bfeai.com,
@@ -235,32 +175,10 @@ export async function GET(request: NextRequest) {
   const loginUrl = new URL('/login', appUrl);
   loginUrl.searchParams.set('message', 'logged_out');
 
-  // Create redirect response
-  // Note: Some edge platforms (Netlify) may strip Set-Cookie from redirects
-  // The POST handler is preferred for reliable cookie clearing
+  // Note: Netlify may strip Set-Cookie from redirect responses, even when set
+  // via NextResponse.cookies. Apps should prefer navigating to /logout (the
+  // page) so the POST handler — which always preserves Set-Cookie — runs.
   const response = NextResponse.redirect(loginUrl);
-  response.headers.append('Set-Cookie', setCookieValue);
-
-  // Also clear Supabase auth cookies as backup
-  const supabaseProjectRef = (process.env.NEXT_PUBLIC_SUPABASE_URL || '')
-    .replace('https://', '')
-    .replace('.supabase.co', '');
-  if (supabaseProjectRef) {
-    const sbCookieBase = `sb-${supabaseProjectRef}-auth-token`;
-    for (const suffix of ['', '.0', '.1', '.2', '.3', '.4', '-code-verifier']) {
-      const sbClearParts = [
-        `${sbCookieBase}${suffix}=`,
-        'Path=/',
-        'Max-Age=0',
-        `Expires=${expireDate}`,
-        'SameSite=Lax',
-      ];
-      if (isProduction) {
-        sbClearParts.push('Secure');
-      }
-      response.headers.append('Set-Cookie', sbClearParts.join('; '));
-    }
-  }
-
+  clearAuthCookies(response);
   return response;
 }
