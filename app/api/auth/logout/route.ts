@@ -1,3 +1,25 @@
+/**
+ * DEPRECATED — DO NOT MODIFY THIS FILE TO FIX LOGOUT.
+ *
+ * @netlify/plugin-nextjs strips Set-Cookie headers from Next.js Route
+ * Handler responses, regardless of how they are constructed. Three
+ * patterns were tried (response.headers.append, response.cookies.set,
+ * initial-headers HeadersInit array) — all returned with zero Set-Cookie
+ * in production network captures. The smoking gun was the netlify-vary
+ * + cache-status headers on every response, confirming the plugin was
+ * routing through its Next.js cache-aware pipeline (which strips
+ * Set-Cookie to avoid cache pollution).
+ *
+ * The working logout endpoint is `netlify/functions/auth-logout.ts`,
+ * exposed at `/.netlify/functions/auth-logout`. All apps' /logout page
+ * and DashboardShell sidebar fetch that path.
+ *
+ * This file is kept only so external integrations and bookmarks pointing
+ * at /api/auth/logout don't 404. The handlers below run, log the
+ * security event, and return — but the cookie-clearing they attempt is
+ * a no-op in production.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
