@@ -11,6 +11,8 @@
     "lint:fix": "next lint --fix",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
@@ -76,7 +78,9 @@
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.15.4",
     "@playwright/test": "^1.57.0",
+    "@vitest/ui": "^1.6.1",
     "eslint": "^9.39.2",
-    "eslint-config-next": "^16.1.1"
+    "eslint-config-next": "^16.1.1",
+    "vitest": "^1.6.1"
   }
 }
