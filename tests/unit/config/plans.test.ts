@@ -5,6 +5,7 @@ import {
   MAX_PLAN,
   ALL_SUBSCRIPTIONS,
   UNIVERSAL_APP_KEY,
+  findSubscriptionPlan,
 } from '../../../config/plans';
 
 describe('new tier constants', () => {
@@ -53,5 +54,21 @@ describe('new tier constants', () => {
       (p) => (p.tier as string) === 'aeo_consultant'
     );
     expect(aeoExists).toBe(false);
+  });
+});
+
+describe('findSubscriptionPlan sentinel rejection', () => {
+  it('returns null for sentinel "any" appKey', () => {
+    expect(findSubscriptionPlan('any')).toBeNull();
+  });
+
+  it('returns null for "any" with tier specified', () => {
+    expect(findSubscriptionPlan('any', 'lite')).toBeNull();
+  });
+
+  it('still works for legacy app keys', () => {
+    const plan = findSubscriptionPlan('keywords');
+    expect(plan).not.toBeNull();
+    expect(plan?.appKey).toBe('keywords');
   });
 });

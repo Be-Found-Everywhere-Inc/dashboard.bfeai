@@ -109,6 +109,8 @@ export const ALL_SUBSCRIPTIONS = [
 
 /** Find a subscription plan by appKey and optional tier */
 export function findSubscriptionPlan(appKey: string, tier?: string) {
+  // Sentinel "any" must always be resolved by priceId, never by appKey
+  if (appKey === UNIVERSAL_APP_KEY) return null;
   return ALL_SUBSCRIPTIONS.find(
     (p) => p.appKey === appKey && (!tier || p.tier === tier)
   );
