@@ -35,6 +35,10 @@ export type CreditBalance = {
   cap: number;
   lifetimeEarned: number;
   lifetimeSpent: number;
+  /** Most recent skipped-scan timestamp (Wave 2 banner). */
+  lastSkippedScanAt: string | null;
+  /** When the user last dismissed the skipped-scan banner. */
+  lastSkippedScanDismissedAt: string | null;
 };
 
 export type CreditTransaction = {

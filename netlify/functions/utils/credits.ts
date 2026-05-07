@@ -14,6 +14,18 @@ export type CreditBalance = {
   cap: number;
   lifetimeEarned: number;
   lifetimeSpent: number;
+  /**
+   * ISO timestamp of the most recent scheduled scan that was skipped due to
+   * insufficient credits, or null if no skip has been recorded. Surfaced from
+   * `user_credits.last_skipped_scan_at` (Wave 1 migration).
+   */
+  lastSkippedScanAt: string | null;
+  /**
+   * ISO timestamp of when the user last dismissed the skipped-scan banner, or
+   * null if never dismissed. Surfaced from `user_credits.last_skipped_scan_dismissed_at`.
+   * Banner is shown when `lastSkippedScanAt` exists and is greater than this.
+   */
+  lastSkippedScanDismissedAt: string | null;
 };
 
 export type CreditCheckResult = {
@@ -54,7 +66,7 @@ export type CreditTransaction = {
 export const getBalance = async (userId: string): Promise<CreditBalance> => {
   const { data, error } = await supabaseAdmin
     .from("user_credits")
-    .select("subscription_balance, topup_balance, trial_balance, trial_expires_at, subscription_cap, lifetime_earned, lifetime_spent")
+    .select("subscription_balance, topup_balance, trial_balance, trial_expires_at, subscription_cap, lifetime_earned, lifetime_spent, last_skipped_scan_at, last_skipped_scan_dismissed_at")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -63,7 +75,17 @@ export const getBalance = async (userId: string): Promise<CreditBalance> => {
   }
 
   if (!data) {
-    return { subscriptionBalance: 0, topupBalance: 0, trialBalance: 0, total: 0, cap: 900, lifetimeEarned: 0, lifetimeSpent: 0 };
+    return {
+      subscriptionBalance: 0,
+      topupBalance: 0,
+      trialBalance: 0,
+      total: 0,
+      cap: 900,
+      lifetimeEarned: 0,
+      lifetimeSpent: 0,
+      lastSkippedScanAt: null,
+      lastSkippedScanDismissedAt: null,
+    };
   }
 
   // Check if trial credits have expired
@@ -79,6 +101,8 @@ export const getBalance = async (userId: string): Promise<CreditBalance> => {
     cap: data.subscription_cap,
     lifetimeEarned: data.lifetime_earned,
     lifetimeSpent: data.lifetime_spent,
+    lastSkippedScanAt: data.last_skipped_scan_at ?? null,
+    lastSkippedScanDismissedAt: data.last_skipped_scan_dismissed_at ?? null,
   };
 };
 
