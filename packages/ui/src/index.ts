@@ -5,6 +5,9 @@ export { hasOffpageBetaAccess } from "./auth/beta-access";
 export { cn } from "./lib/utils";
 export * from "./lib/topup-packs";
 
+// Credits
+export * from "./credits/CreditsProvider";
+
 // Hooks
 export { useIsMobile } from "./hooks/use-mobile";
 export { useToast, toast } from "./hooks/use-toast";
