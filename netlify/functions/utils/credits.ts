@@ -316,6 +316,25 @@ export const allocateTopUpCredits = async (
   referenceId?: string
 ): Promise<AllocateResult> => {
   await ensureUserCreditsRow(userId);
+
+  // Idempotency: skip if this exact reference_id was already used for a topup.
+  // Critical for Wave 3 where sync auto-topup-charge + webhook race for same PaymentIntent.
+  if (referenceId) {
+    const { data: existing } = await supabaseAdmin
+      .from("credit_transactions")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("reference_id", referenceId)
+      .eq("type", "topup_purchase")
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      const balance = await getBalance(userId);
+      console.log(`[credits] Skipping duplicate topup allocation by reference_id for user ${userId} (ref: ${referenceId})`);
+      return { newBalance: balance.total, allocated: 0 };
+    }
+  }
+
   const balance = await getBalance(userId);
 
   const newTopup = balance.topupBalance + amount;
