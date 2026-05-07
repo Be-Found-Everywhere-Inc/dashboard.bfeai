@@ -1,41 +1,7 @@
 import { withErrorHandling, jsonResponse, HttpError } from "./utils/http";
 import { requireAuth } from "./utils/supabase-admin";
 import { getOrCreateStripeCustomer, createTopUpCheckoutSession } from "./utils/stripe";
-import { getStripeEnv } from "../../lib/stripe-env";
-
-type TopUpPack = {
-  priceId: string;
-  credits: number;
-  name: string;
-};
-
-const TOP_UP_PACKS: Record<string, TopUpPack> = {
-  starter: {
-    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_STARTER", "price_topup_starter"),
-    credits: 75,
-    name: "Starter Boost",
-  },
-  builder: {
-    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_BUILDER", "price_topup_builder"),
-    credits: 270,
-    name: "Builder Pack",
-  },
-  power: {
-    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_POWER", "price_topup_power"),
-    credits: 980,
-    name: "Power Pack",
-  },
-  pro: {
-    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_PRO", "price_topup_pro"),
-    credits: 2500,
-    name: "Pro Pack",
-  },
-  max: {
-    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_MAX", "price_topup_max"),
-    credits: 5250,
-    name: "Max Pack",
-  },
-};
+import { TOPUP_PACKS, type TopUpPackKey } from "../../config/plans";
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://dashboard.bfeai.com";
 const SUCCESS_URL = `${DASHBOARD_URL}/credits?topup=success`;
@@ -64,9 +30,12 @@ export const handler = withErrorHandling(async (event) => {
     throw new HttpError(400, "packKey is required");
   }
 
-  const pack = TOP_UP_PACKS[body.packKey];
+  const pack = TOPUP_PACKS[body.packKey as TopUpPackKey];
   if (!pack) {
-    throw new HttpError(400, `Unknown pack: ${body.packKey}. Valid packs: ${Object.keys(TOP_UP_PACKS).join(", ")}`);
+    throw new HttpError(
+      400,
+      `Unknown pack: ${body.packKey}. Valid packs: ${Object.keys(TOPUP_PACKS).join(", ")}`
+    );
   }
 
   const customerId = await getOrCreateStripeCustomer(user.id, email);
