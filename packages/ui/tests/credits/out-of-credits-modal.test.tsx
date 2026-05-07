@@ -63,4 +63,39 @@ describe("<OutOfCreditsModal>", () => {
       expect(screen.getByRole("alert")).toHaveTextContent(/Stripe down/);
     });
   });
+
+  it("disables all packs while one purchase is pending", async () => {
+    // Make onPurchase hang so we can observe the pending state
+    let resolve: () => void = () => {};
+    const onPurchase = vi.fn().mockImplementation(() => new Promise<void>((r) => { resolve = r; }));
+    renderModal(onPurchase);
+    await waitFor(() => screen.getByText(TOPUP_PACKS[0].name));
+
+    fireEvent.click(screen.getByText(TOPUP_PACKS[0].name));
+
+    // While pending, clicking another pack should not call onPurchase again
+    await waitFor(() => {
+      expect(screen.getByText(/Redirecting to checkout/i)).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText(TOPUP_PACKS[1].name));
+    expect(onPurchase).toHaveBeenCalledTimes(1); // still 1, not 2
+
+    resolve();
+  });
+
+  it("clears pending state on successful resolution", async () => {
+    const onPurchase = vi.fn().mockResolvedValue(undefined);
+    renderModal(onPurchase);
+    await waitFor(() => screen.getByText(TOPUP_PACKS[0].name));
+
+    fireEvent.click(screen.getByText(TOPUP_PACKS[0].name));
+    await waitFor(() => {
+      expect(onPurchase).toHaveBeenCalledTimes(1);
+    });
+
+    // After success, pending state should be cleared (no "Redirecting" text)
+    await waitFor(() => {
+      expect(screen.queryByText(/Redirecting to checkout/i)).not.toBeInTheDocument();
+    });
+  });
 });

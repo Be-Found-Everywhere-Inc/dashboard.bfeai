@@ -42,6 +42,7 @@ export function OutOfCreditsModal({ manageCreditsUrl, onPurchase }: OutOfCredits
     } catch (err) {
       console.error("[OutOfCreditsModal] purchase failed", err);
       setError(err instanceof Error ? err.message : "Could not start checkout. Try again.");
+    } finally {
       setPendingKey(null);
     }
   };
