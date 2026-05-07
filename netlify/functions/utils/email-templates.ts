@@ -240,3 +240,57 @@ function escapeHtml(str: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+// ---------------------------------------------------------------------------
+// Scheduled scan skipped (low credits)
+// ---------------------------------------------------------------------------
+
+interface ScheduledScanSkippedData {
+  firstName?: string;
+  appName: string;
+  requiredCredits: number;
+  availableCredits: number;
+  creditsUrl: string;
+}
+
+/**
+ * Render the "your scheduled scan was skipped" email sent when a scheduled
+ * run can't fire because the user is short on credits. Throttled to at most
+ * once per 24h per user/app via shouldSendEmail() at the call site.
+ */
+export function renderScheduledScanSkippedEmail(
+  params: ScheduledScanSkippedData
+): { subject: string; html: string; text: string } {
+  const greeting = params.firstName
+    ? `Hi ${escapeHtml(params.firstName)},`
+    : "Hi there,";
+  const appName = escapeHtml(params.appName);
+  const creditsUrl = escapeHtml(params.creditsUrl);
+  const required = String(params.requiredCredits);
+  const available = String(params.availableCredits);
+  const subject = `Your ${params.appName} scheduled scan was skipped — top up to resume`;
+
+  const html = `<!doctype html>
+<html><body style="font-family:system-ui,-apple-system,sans-serif;color:#111;line-height:1.55;max-width:560px;margin:0 auto;padding:24px">
+  <p>${greeting}</p>
+  <p>We tried to run your scheduled ${appName} scan but you didn't have enough credits.</p>
+  <p>The scan needed <strong>${required}</strong> credits and your balance was <strong>${available}</strong>.</p>
+  <p>Top up to resume scheduled scans:</p>
+  <p><a href="${creditsUrl}" style="display:inline-block;padding:10px 18px;background:#533577;color:#fff;border-radius:8px;text-decoration:none">Manage credits</a></p>
+  <p style="font-size:12px;color:#666;margin-top:32px">You'll get this email at most once per 24 hours per app.</p>
+</body></html>`;
+
+  const plainGreeting = params.firstName
+    ? `Hi ${params.firstName},`
+    : "Hi there,";
+  const text = `${plainGreeting}
+
+We tried to run your scheduled ${params.appName} scan but you didn't have enough credits.
+Needed: ${required}. Available: ${available}.
+
+Manage credits: ${params.creditsUrl}
+
+You'll get this email at most once per 24 hours per app.`;
+
+  return { subject, html, text };
+}
