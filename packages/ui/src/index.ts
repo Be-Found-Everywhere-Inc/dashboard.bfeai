@@ -3,6 +3,7 @@ export { hasOffpageBetaAccess } from "./auth/beta-access";
 
 // Utilities
 export { cn } from "./lib/utils";
+export * from "./lib/topup-packs";
 
 // Hooks
 export { useIsMobile } from "./hooks/use-mobile";
