@@ -10,7 +10,7 @@ import {
   createBundleCheckoutSession,
   checkBundleEligibility,
 } from "./utils/stripe";
-import { findSubscriptionPlan, findBundlePlan } from "../../config/plans";
+import { findSubscriptionPlan, findBundlePlan, LITE_PLAN, UNIVERSAL_APP_KEY } from "../../config/plans";
 import { getStripeEnv } from "../../lib/stripe-env";
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://dashboard.bfeai.com";
@@ -41,6 +41,7 @@ export const handler = withErrorHandling(async (event) => {
   let trial = false;
   let dualTrial = false;
   let bundle = false;
+  let unifiedTrial = false;
 
   if (event.body) {
     try {
@@ -51,6 +52,7 @@ export const handler = withErrorHandling(async (event) => {
       if (body.trial === true) trial = true;
       if (body.dualTrial === true) dualTrial = true;
       if (body.bundle === true) bundle = true;
+      if (body.unifiedTrial === true || body.flow === "unified_trial") unifiedTrial = true;
     } catch {
       // If body parsing fails, use defaults (backwards compatible)
     }
@@ -90,6 +92,29 @@ export const handler = withErrorHandling(async (event) => {
       customerId,
       user.id,
       SUCCESS_URL,
+      CANCEL_URL
+    );
+
+    return jsonResponse(200, { url: session.url });
+  }
+
+  // Unified trial flow ($1 setup fee + 7-day trial on Lite, universal app access)
+  if (unifiedTrial) {
+    const priceId = LITE_PLAN.stripePriceIdMonthly;
+    if (!priceId) {
+      throw new HttpError(400, "STRIPE_PRICE_LITE_MONTHLY not configured");
+    }
+
+    const eligibility = await checkTrialEligibility(user.id, UNIVERSAL_APP_KEY, customerId);
+    if (!eligibility.eligible) {
+      throw new HttpError(409, `Not eligible for trial: ${eligibility.reason}`);
+    }
+
+    const session = await createTrialCheckoutSession(
+      customerId,
+      priceId,
+      UNIVERSAL_APP_KEY,
+      TRIAL_SUCCESS_URL,
       CANCEL_URL
     );
 
