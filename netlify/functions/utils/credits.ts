@@ -615,7 +615,7 @@ export const recalculateSubscriptionCap = async (
 ): Promise<number> => {
   const { data: subs, error } = await supabaseAdmin
     .from("app_subscriptions")
-    .select("app_key, stripe_price_id, status")
+    .select("app_key, stripe_price_id, stripe_subscription_id, status")
     .eq("user_id", userId)
     .in("status", ["active", "trialing", "past_due"]);
 
@@ -630,7 +630,6 @@ export const recalculateSubscriptionCap = async (
     totalCap = 900; // Default cap for users with no active subs
   } else {
     for (const sub of subs) {
-      // Try price ID lookup first (handles multi-tier apps like LABS)
       const plan = sub.stripe_price_id
         ? findSubscriptionByPriceId(sub.stripe_price_id)
         : null;
@@ -638,8 +637,14 @@ export const recalculateSubscriptionCap = async (
       if (plan) {
         totalCap += plan.creditCap;
       } else {
-        // Fallback to first plan matching app_key
         const fallback = findSubscriptionPlan(sub.app_key);
+        if (!fallback) {
+          // Sentinel app_key with unresolvable priceId — loud warning, default cap
+          console.warn(
+            `[credits] Could not resolve plan for sub ${sub.stripe_subscription_id ?? 'unknown'} ` +
+            `with priceId ${sub.stripe_price_id ?? 'none'}, app_key=${sub.app_key}. Cap defaulted to 900.`
+          );
+        }
         totalCap += fallback?.creditCap ?? 900;
       }
     }
