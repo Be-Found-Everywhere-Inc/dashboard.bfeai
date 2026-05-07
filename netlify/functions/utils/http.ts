@@ -50,6 +50,7 @@ export const corsHeaders = (origin?: string): Record<string, string> => {
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
   };
 };
@@ -90,9 +91,10 @@ export const withErrorHandling = (handler: AsyncHandler): Handler => {
     // the allowlist — browser will then block the actual request) is the
     // standard pattern.
     if (event.httpMethod === "OPTIONS") {
+      const headers = corsHeaders(getEventOrigin(event));
       return {
         statusCode: 204,
-        headers: corsHeaders(getEventOrigin(event)),
+        headers: { Vary: "Origin", ...headers },
         body: "",
       };
     }
