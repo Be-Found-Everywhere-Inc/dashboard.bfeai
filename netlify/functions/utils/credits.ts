@@ -123,12 +123,23 @@ export const deductCredits = async (
   const cost = await getCreditCost(appKey, operation);
   const balance = await getBalance(userId);
 
-  if (balance.total < cost) {
+  // Allow brief negative balance up to -cost (race-condition tolerance).
+  // Pre-flight checkCredits should have caught insufficient balance at op start;
+  // this path triggers when another tab/op spent during the work.
+  const allowableNegativeFloor = -cost;
+  const projectedBalance = balance.total - cost;
+
+  if (projectedBalance < allowableNegativeFloor) {
+    // Even with the race allowance, this is insufficient — pre-flight should have caught it.
     throw new HttpError(402, "Insufficient credits", {
       required: cost,
       available: balance.total,
     });
   }
+
+  // Race detection: log if we're going negative
+  const isNegativeRace = balance.total < cost;
+  const deductionType = isNegativeRace ? "negative_balance_race" : "usage_deduction";
 
   const now = new Date().toISOString();
   let lastTransactionId = "";
@@ -165,7 +176,7 @@ export const deductCredits = async (
         amount: -deductFromTrial,
         balance_after: balance.total - deductFromTrial,
         pool: "trial",
-        type: "usage_deduction",
+        type: deductionType,
         description: `${operation} (${appKey})`,
         app_key: appKey,
         reference_id: referenceId ?? null,
@@ -184,7 +195,7 @@ export const deductCredits = async (
         amount: -deductFromTopup,
         balance_after: balance.total - deductFromTrial - deductFromTopup,
         pool: "topup",
-        type: "usage_deduction",
+        type: deductionType,
         description: `${operation} (${appKey})`,
         app_key: appKey,
         reference_id: referenceId ?? null,
@@ -203,7 +214,7 @@ export const deductCredits = async (
         amount: -deductFromSub,
         balance_after: newBalance,
         pool: "subscription",
-        type: "usage_deduction",
+        type: deductionType,
         description: `${operation} (${appKey})`,
         app_key: appKey,
         reference_id: referenceId ?? null,
