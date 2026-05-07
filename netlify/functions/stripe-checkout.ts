@@ -127,7 +127,7 @@ export const handler = withErrorHandling(async (event) => {
 
   if (plan) {
     priceId = billingPeriod === "yearly"
-      ? plan.stripePriceIdYearly
+      ? ("stripePriceIdYearly" in plan ? plan.stripePriceIdYearly : "")
       : plan.stripePriceIdMonthly;
   } else {
     priceId = "";

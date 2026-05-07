@@ -440,7 +440,9 @@ async function handlePostCheckout(
     // Regular subscription checkout (no trial)
     const plan = findSubscriptionPlan(appKey!, tier);
     const priceId = plan
-      ? (billingPeriod === "yearly" ? plan.stripePriceIdYearly : plan.stripePriceIdMonthly)
+      ? (billingPeriod === "yearly"
+          ? ("stripePriceIdYearly" in plan ? plan.stripePriceIdYearly : "")
+          : plan.stripePriceIdMonthly)
       : "";
 
     if (!priceId) {
