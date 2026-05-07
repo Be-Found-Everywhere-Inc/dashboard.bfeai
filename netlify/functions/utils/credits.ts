@@ -134,6 +134,7 @@ export const deductCredits = async (
     throw new HttpError(402, "Insufficient credits", {
       required: cost,
       available: balance.total,
+      operation,
     });
   }
 
