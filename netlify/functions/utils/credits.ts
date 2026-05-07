@@ -88,6 +88,12 @@ export const getBalance = async (userId: string): Promise<CreditBalance> => {
 
 /**
  * Check if a user has enough credits for an operation.
+ *
+ * Returns sufficient/cost/balance for callers to decide whether to proceed.
+ * Callers (consumer apps performing pre-flight gates) MUST raise an HTTP 402
+ * with `{ required, available, operation }` (matching deductCredits' 402 shape)
+ * when sufficient === false, so <OutOfCreditsModal> in @bfeai/ui receives a
+ * consistent payload regardless of which app raised the 402.
  */
 export const checkCredits = async (
   userId: string,
