@@ -6,6 +6,7 @@ import {
   ALL_SUBSCRIPTIONS,
   UNIVERSAL_APP_KEY,
   findSubscriptionPlan,
+  TOPUP_PACKS,
 } from '../../../config/plans';
 
 describe('new tier constants', () => {
@@ -70,5 +71,22 @@ describe('findSubscriptionPlan sentinel rejection', () => {
     const plan = findSubscriptionPlan('keywords');
     expect(plan).not.toBeNull();
     expect(plan?.appKey).toBe('keywords');
+  });
+});
+
+describe('TOPUP_PACKS consolidation', () => {
+  it('all packs have priceId and priceCents', () => {
+    for (const [, pack] of Object.entries(TOPUP_PACKS)) {
+      expect(pack.priceCents).toBe(pack.price * 100);
+      expect(pack.priceId).toBeDefined();
+    }
+  });
+
+  it('priceCents matches expected for power pack', () => {
+    expect(TOPUP_PACKS.power.priceCents).toBe(9900);
+  });
+
+  it('priceCents matches expected for max pack', () => {
+    expect(TOPUP_PACKS.max.priceCents).toBe(49900);
   });
 });

@@ -17,16 +17,63 @@ export type TopUpPack = {
   name: string;
   credits: number;
   price: number;
+  priceCents: number;
+  priceId: string;
   perCredit: string;
   approxRuns: number;
 };
 
 export const TOPUP_PACKS: Record<TopUpPackKey, TopUpPack> = {
-  starter: { key: "starter", name: "Starter Boost", credits: 75, price: 9, perCredit: "$0.120", approxRuns: 3 },
-  builder: { key: "builder", name: "Builder Pack", credits: 270, price: 29, perCredit: "$0.107", approxRuns: 13 },
-  power: { key: "power", name: "Power Pack", credits: 980, price: 99, perCredit: "$0.101", approxRuns: 49 },
-  pro: { key: "pro", name: "Pro Pack", credits: 2500, price: 249, perCredit: "$0.100", approxRuns: 125 },
-  max: { key: "max", name: "Max Pack", credits: 5250, price: 499, perCredit: "$0.095", approxRuns: 262 },
+  starter: {
+    key: "starter",
+    name: "Starter Boost",
+    credits: 75,
+    price: 9,
+    priceCents: 900,
+    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_STARTER", "price_topup_starter"),
+    perCredit: "$0.120",
+    approxRuns: 3,
+  },
+  builder: {
+    key: "builder",
+    name: "Builder Pack",
+    credits: 270,
+    price: 29,
+    priceCents: 2900,
+    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_BUILDER", "price_topup_builder"),
+    perCredit: "$0.107",
+    approxRuns: 13,
+  },
+  power: {
+    key: "power",
+    name: "Power Pack",
+    credits: 980,
+    price: 99,
+    priceCents: 9900,
+    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_POWER", "price_topup_power"),
+    perCredit: "$0.101",
+    approxRuns: 49,
+  },
+  pro: {
+    key: "pro",
+    name: "Pro Pack",
+    credits: 2500,
+    price: 249,
+    priceCents: 24900,
+    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_PRO", "price_topup_pro"),
+    perCredit: "$0.100",
+    approxRuns: 125,
+  },
+  max: {
+    key: "max",
+    name: "Max Pack",
+    credits: 5250,
+    price: 499,
+    priceCents: 49900,
+    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_MAX", "price_topup_max"),
+    perCredit: "$0.095",
+    approxRuns: 262,
+  },
 };
 
 export const TOPUP_PACK_ORDER: TopUpPackKey[] = ["starter", "builder", "power", "pro", "max"];
