@@ -59,7 +59,7 @@ export function buildTrialReminderHtml(data: TrialReminderData): string {
               </table>
 
               <p style="margin:0 0 24px;color:#333;font-size:16px;line-height:1.6;">
-                If you'd like to continue using ${escapeHtml(data.appName)}, no action is needed. Your subscription will start automatically.
+                You'll be charged <strong>${escapeHtml(data.chargeAmount)}</strong> on <strong>${escapeHtml(data.chargeDate)}</strong> unless you cancel. No action is needed if you'd like to continue.
               </p>
 
               <p style="margin:0 0 24px;color:#333;font-size:16px;line-height:1.6;">
@@ -108,7 +108,7 @@ Your trial of ${data.appName} is ending soon.
 First charge date: ${data.chargeDate}
 Amount: ${data.chargeAmount}
 
-If you'd like to continue, no action is needed. Your subscription will start automatically.
+You'll be charged ${data.chargeAmount} on ${data.chargeDate} unless you cancel. No action is needed if you'd like to continue.
 
 To cancel before you're charged, visit: ${data.cancellationUrl}
 
