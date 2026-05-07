@@ -67,6 +67,16 @@ export const useBilling = () => {
     onSuccess: invalidate,
   });
 
+  const unifiedTrialCheckoutMutation = useMutation({
+    mutationFn: () => BillingService.createUnifiedTrialCheckout(),
+    onSuccess: invalidate,
+  });
+
+  const tierCheckoutMutation = useMutation({
+    mutationFn: (tier: "lite" | "plus" | "max") => BillingService.createTierCheckout(tier),
+    onSuccess: invalidate,
+  });
+
   const subscriptions = subscriptionQuery.data?.subscriptions ?? [];
 
   const getSubscription = (appKey: string) =>
@@ -124,5 +134,19 @@ export const useBilling = () => {
       return url;
     },
     bundleCheckoutLoading: bundleCheckoutMutation.isPending,
+
+    // Unified trial checkout ($1/7-day trial on Lite, universal access)
+    createUnifiedTrialCheckout: async () => {
+      const { url } = await unifiedTrialCheckoutMutation.mutateAsync();
+      return url;
+    },
+    unifiedTrialCheckoutLoading: unifiedTrialCheckoutMutation.isPending,
+
+    // Tier checkout (Lite/Plus/Max, universal access)
+    createTierCheckout: async (tier: "lite" | "plus" | "max") => {
+      const { url } = await tierCheckoutMutation.mutateAsync(tier);
+      return url;
+    },
+    tierCheckoutLoading: tierCheckoutMutation.isPending,
   };
 };

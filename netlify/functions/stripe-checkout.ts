@@ -10,7 +10,7 @@ import {
   createBundleCheckoutSession,
   checkBundleEligibility,
 } from "./utils/stripe";
-import { findSubscriptionPlan, findBundlePlan, LITE_PLAN, UNIVERSAL_APP_KEY } from "../../config/plans";
+import { findSubscriptionPlan, findBundlePlan, LITE_PLAN, PLUS_PLAN, MAX_PLAN, UNIVERSAL_APP_KEY } from "../../config/plans";
 import { getStripeEnv } from "../../lib/stripe-env";
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://dashboard.bfeai.com";
@@ -146,21 +146,27 @@ export const handler = withErrorHandling(async (event) => {
     return jsonResponse(200, { url: session.url });
   }
 
-  // Regular subscription checkout flow
-  const plan = findSubscriptionPlan(appKey, tier);
-  let priceId: string;
-
-  if (plan) {
-    priceId = billingPeriod === "yearly"
-      ? ("stripePriceIdYearly" in plan ? plan.stripePriceIdYearly : "")
-      : plan.stripePriceIdMonthly;
+  // New-tier subscription flow: appKey='any' resolves to Lite/Plus/Max by tier
+  let priceId: string = "";
+  if (appKey === UNIVERSAL_APP_KEY) {
+    const tierPlanMap = { lite: LITE_PLAN, plus: PLUS_PLAN, max: MAX_PLAN } as const;
+    const tierPlan = tier && tier in tierPlanMap ? tierPlanMap[tier as keyof typeof tierPlanMap] : null;
+    if (!tierPlan) {
+      throw new HttpError(400, `Invalid tier for universal plan: ${tier ?? "(none)"}`);
+    }
+    priceId = tierPlan.stripePriceIdMonthly;
   } else {
-    priceId = "";
-  }
-
-  // Fall back to legacy env var for Keywords (backwards compatible)
-  if (!priceId && appKey === "keywords") {
-    priceId = LEGACY_KEYWORDS_PRICE_ID;
+    // Legacy per-app subscription flow
+    const plan = findSubscriptionPlan(appKey, tier);
+    if (plan) {
+      priceId = billingPeriod === "yearly"
+        ? ("stripePriceIdYearly" in plan ? plan.stripePriceIdYearly : "")
+        : plan.stripePriceIdMonthly;
+    }
+    // Fall back to legacy env var for Keywords (backwards compatible)
+    if (!priceId && appKey === "keywords") {
+      priceId = LEGACY_KEYWORDS_PRICE_ID;
+    }
   }
 
   if (!priceId) {
