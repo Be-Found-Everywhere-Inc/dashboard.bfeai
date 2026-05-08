@@ -1,10 +1,28 @@
 import { HttpError } from "./http";
 import { supabaseAdmin } from "./supabase-admin";
 import { findSubscriptionByPriceId, findSubscriptionPlan } from "../../../config/plans";
+import { stripe } from "./stripe";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+export type AutoTopUpState = {
+  /** Whether auto top-up is currently enabled for this user. */
+  enabled: boolean;
+  /** The top-up pack key selected (e.g. "starter_boost"), or null if not configured. */
+  packKey: string | null;
+  /** Monthly spend cap in cents (default 20000 = $200). */
+  capCents: number;
+  /** Amount charged via auto top-up so far this calendar month, in cents. */
+  mtdSpentCents: number;
+  /** ISO timestamp of the most recent auto top-up charge, or null if never charged. */
+  lastChargeAt: string | null;
+  /** Last 4 digits of the saved payment method, or null on lookup failure / not set. */
+  paymentMethodLast4: string | null;
+  /** Reason auto top-up was disabled (e.g. "payment_failed"), or null if not disabled. */
+  disabledReason: string | null;
+};
 
 export type CreditBalance = {
   subscriptionBalance: number;
@@ -26,6 +44,8 @@ export type CreditBalance = {
    * Banner is shown when `lastSkippedScanAt` exists and is greater than this.
    */
   lastSkippedScanDismissedAt: string | null;
+  /** Auto top-up configuration and current-month spend state (Wave 3). */
+  autoTopup: AutoTopUpState;
 };
 
 export type CreditCheckResult = {
@@ -60,13 +80,42 @@ export type CreditTransaction = {
 // Balance
 // ---------------------------------------------------------------------------
 
+/** Default AutoTopUpState for users with no user_credits row yet. */
+const DEFAULT_AUTO_TOPUP: AutoTopUpState = {
+  enabled: false,
+  packKey: null,
+  capCents: 20000,
+  mtdSpentCents: 0,
+  lastChargeAt: null,
+  paymentMethodLast4: null,
+  disabledReason: null,
+};
+
+/**
+ * Resolve Stripe payment method last4 from a payment method ID.
+ * Returns null on any failure (PM detached, deleted customer, network error, etc.)
+ * so that a Stripe lookup failure never breaks the balance fetch.
+ */
+const resolvePaymentMethodLast4 = async (
+  pmId: string
+): Promise<string | null> => {
+  try {
+    const pm = await stripe.paymentMethods.retrieve(pmId);
+    return pm.card?.last4 ?? null;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Get the current credit balance for a user (both pools).
  */
 export const getBalance = async (userId: string): Promise<CreditBalance> => {
   const { data, error } = await supabaseAdmin
     .from("user_credits")
-    .select("subscription_balance, topup_balance, trial_balance, trial_expires_at, subscription_cap, lifetime_earned, lifetime_spent, last_skipped_scan_at, last_skipped_scan_dismissed_at")
+    .select(
+      "subscription_balance, topup_balance, trial_balance, trial_expires_at, subscription_cap, lifetime_earned, lifetime_spent, last_skipped_scan_at, last_skipped_scan_dismissed_at, auto_topup_enabled, auto_topup_pack_key, auto_topup_monthly_cap_cents, auto_topup_payment_method_id, auto_topup_disabled_reason"
+    )
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -85,6 +134,7 @@ export const getBalance = async (userId: string): Promise<CreditBalance> => {
       lifetimeSpent: 0,
       lastSkippedScanAt: null,
       lastSkippedScanDismissedAt: null,
+      autoTopup: DEFAULT_AUTO_TOPUP,
     };
   }
 
@@ -92,6 +142,31 @@ export const getBalance = async (userId: string): Promise<CreditBalance> => {
   const now = new Date();
   const trialExpiresAt = data.trial_expires_at ? new Date(data.trial_expires_at) : null;
   const trialBalance = trialExpiresAt && trialExpiresAt < now ? 0 : (data.trial_balance ?? 0);
+
+  // Fetch auto top-up supplementary data in parallel
+  const pmId: string | null = data.auto_topup_payment_method_id ?? null;
+
+  const [mtdResult, lastChargeResult, paymentMethodLast4] = await Promise.all([
+    // MTD auto top-up spend (cents)
+    supabaseAdmin.rpc("mtd_auto_topup_cents", { p_user_id: userId }),
+    // Most recent auto top-up charge timestamp
+    supabaseAdmin
+      .from("credit_transactions")
+      .select("created_at")
+      .eq("user_id", userId)
+      .eq("auto_topup", true)
+      .eq("type", "topup_purchase")
+      .order("created_at", { ascending: false })
+      .limit(1),
+    // Stripe payment method last4 (null-safe)
+    pmId ? resolvePaymentMethodLast4(pmId) : Promise.resolve(null),
+  ]);
+
+  const mtdSpentCents: number = (mtdResult.data as number | null) ?? 0;
+  const lastChargeAt: string | null =
+    lastChargeResult.data && lastChargeResult.data.length > 0
+      ? (lastChargeResult.data[0].created_at as string)
+      : null;
 
   return {
     subscriptionBalance: data.subscription_balance,
@@ -103,6 +178,15 @@ export const getBalance = async (userId: string): Promise<CreditBalance> => {
     lifetimeSpent: data.lifetime_spent,
     lastSkippedScanAt: data.last_skipped_scan_at ?? null,
     lastSkippedScanDismissedAt: data.last_skipped_scan_dismissed_at ?? null,
+    autoTopup: {
+      enabled: data.auto_topup_enabled ?? false,
+      packKey: data.auto_topup_pack_key ?? null,
+      capCents: data.auto_topup_monthly_cap_cents ?? 20000,
+      mtdSpentCents,
+      lastChargeAt,
+      paymentMethodLast4,
+      disabledReason: data.auto_topup_disabled_reason ?? null,
+    },
   };
 };
 
@@ -350,12 +434,18 @@ export const allocateSubscriptionCredits = async (
 
 /**
  * Allocate top-up credits from a purchased pack. No cap.
+ *
+ * @param opts.autoTopup  - Set true when triggered by auto-topup (vs manual purchase).
+ *                          Written to credit_transactions.auto_topup column.
+ * @param opts.priceCents - Actual charge in cents. Written to
+ *                          credit_transactions.price_cents for spend reporting.
  */
 export const allocateTopUpCredits = async (
   userId: string,
   amount: number,
   packName: string,
-  referenceId?: string
+  referenceId?: string,
+  opts?: { autoTopup?: boolean; priceCents?: number }
 ): Promise<AllocateResult> => {
   await ensureUserCreditsRow(userId);
 
@@ -401,6 +491,8 @@ export const allocateTopUpCredits = async (
     description: `${packName} top-up`,
     app_key: null,
     reference_id: referenceId ?? null,
+    auto_topup: opts?.autoTopup ?? false,
+    price_cents: opts?.priceCents ?? null,
   });
 
   return { newBalance: newTotal, allocated: amount };

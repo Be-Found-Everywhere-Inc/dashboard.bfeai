@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HttpError } from '../../../netlify/functions/utils/http';
 
+// Mock stripe so importing credits.ts doesn't require STRIPE_SECRET_KEY.
+vi.mock('../../../netlify/functions/utils/stripe', () => ({
+  stripe: {
+    paymentMethods: { retrieve: vi.fn() },
+  },
+}));
+
 // Mock supabaseAdmin so that:
 // - getCreditCost (queries `app_credit_config`) returns credit_cost: 50
 // - getBalance (queries `user_credits`) returns a row totaling -2 credits
@@ -35,11 +42,26 @@ vi.mock('../../../netlify/functions/utils/supabase-admin', () => {
             subscription_cap: 900,
             lifetime_earned: 0,
             lifetime_spent: 0,
+            auto_topup_enabled: false,
+            auto_topup_pack_key: null,
+            auto_topup_monthly_cap_cents: 20000,
+            auto_topup_payment_method_id: null,
+            auto_topup_disabled_reason: null,
           },
           error: null,
         }),
         update: vi.fn().mockReturnThis(),
         insert: vi.fn().mockReturnThis(),
+      };
+    }
+    if (table === 'credit_transactions') {
+      return {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+        insert: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({ data: { id: 'txn-1' }, error: null }),
       };
     }
     return {
@@ -55,6 +77,7 @@ vi.mock('../../../netlify/functions/utils/supabase-admin', () => {
   return {
     supabaseAdmin: {
       from: vi.fn(fromImpl),
+      rpc: vi.fn().mockResolvedValue({ data: 0, error: null }),
     },
   };
 });

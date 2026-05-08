@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
 
@@ -10,10 +10,14 @@ import {
   SidebarProvider,
   SidebarTrigger,
   hasOffpageBetaAccess,
+  CreditsProvider,
+  OutOfCreditsModal,
+  type AutoTopUpState,
 } from '@bfeai/ui';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { BugReportWidget } from '@/components/bug-report/BugReportWidget';
 import { useCredits } from '@/hooks/use-credits';
+import { useCredits as useCreditsData } from '@/hooks/useCredits';
 
 interface UserData {
   email: string;
@@ -42,6 +46,49 @@ function DashboardContent({
 }) {
   const pathname = usePathname();
   const credits = useCredits();
+  const { balance } = useCreditsData();
+
+  // Map balance.autoTopup → AutoTopUpState for CreditsProvider
+  const autoTopup: AutoTopUpState | null = balance?.autoTopup ?? null;
+
+  const handleRequestSetupIntent = useCallback(async () => {
+    const res = await fetch('/.netlify/functions/setup-intent-create', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error ?? 'Failed to create setup intent');
+    }
+    return res.json() as Promise<{
+      client_secret: string;
+      existing_pm: { last4: string; brand: string } | null;
+    }>;
+  }, []);
+
+  const handleConfirmAutoTopUp = useCallback(async (params: {
+    autoTopUpEnabled: true;
+    autoTopUpPackKey: string;
+    autoTopUpMonthlyCapCents: number;
+    autoTopUpPaymentMethodId: string;
+  }) => {
+    const res = await fetch('/.netlify/functions/settings-billing-update', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        auto_topup_enabled: params.autoTopUpEnabled,
+        auto_topup_pack_key: params.autoTopUpPackKey,
+        auto_topup_monthly_cap_cents: params.autoTopUpMonthlyCapCents,
+        auto_topup_payment_method_id: params.autoTopUpPaymentMethodId,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { error?: string };
+      throw new Error(body.error ?? 'Failed to save auto top-up settings');
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -52,7 +99,7 @@ function DashboardContent({
   }
 
   return (
-    <>
+    <CreditsProvider autoTopup={autoTopup}>
       {/* Sidebar */}
       <AppSidebar
         currentApp="dashboard"
@@ -93,7 +140,29 @@ function DashboardContent({
         </div>
         <BugReportWidget appSource="dashboard" />
       </SidebarInset>
-    </>
+
+      {/* Out-of-credits modal \u2014 mounted once at shell level */}
+      <OutOfCreditsModal
+        manageCreditsUrl="/credits"
+        onPurchase={async (pack) => {
+          const res = await fetch('/.netlify/functions/credits-topup', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ packKey: pack.key }),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({})) as { error?: string };
+            throw new Error(body.error ?? 'Could not start checkout');
+          }
+          const { url } = await res.json() as { url: string };
+          window.location.href = url;
+        }}
+        stripePublishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ''}
+        onRequestSetupIntent={handleRequestSetupIntent}
+        onConfirmAutoTopUp={handleConfirmAutoTopUp}
+      />
+    </CreditsProvider>
   );
 }
 

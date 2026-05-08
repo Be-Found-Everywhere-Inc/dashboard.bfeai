@@ -8,6 +8,7 @@ export * from "./lib/topup-packs";
 // Credits
 export * from "./credits/CreditsProvider";
 export * from "./credits/OutOfCreditsModal";
+export * from "./credits/InlineCardForm";
 
 // Hooks
 export { useIsMobile } from "./hooks/use-mobile";

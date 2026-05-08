@@ -17,6 +17,7 @@ import {
   expireTrialCredits,
   mergeTrialCredits,
   recalculateSubscriptionCap,
+  getBalance,
 } from "./utils/credits";
 import {
   getMonthlyCreditsForSubscription,
@@ -25,8 +26,15 @@ import {
   findSubscriptionPlan,
   GRANDFATHERED_BUNDLE_SUBSCRIPTION_IDS,
   GRANDFATHERED_BUNDLE_APP_KEYS,
+  TOPUP_PACKS,
 } from "../../config/plans";
-import { sendTrialReminderEmail, sendWelcomeEmail } from "./utils/email";
+import type { TopUpPackKey } from "../../config/plans";
+import { sendTrialReminderEmail, sendWelcomeEmail, sendEmail } from "./utils/email";
+import { shouldSendEmail } from "./utils/email-throttle";
+import {
+  renderAutoTopUpRequiresAuthEmail,
+  renderAutoTopUpRefundProcessedEmail,
+} from "./utils/email-templates";
 import type Stripe from "stripe";
 
 /**
@@ -96,6 +104,18 @@ export const handler: Handler = async (event) => {
 
       case "customer.updated":
         await handleCustomerUpdated(stripeEvent.data.object as Stripe.Customer);
+        break;
+
+      case "payment_intent.succeeded":
+        await handlePaymentIntentSucceeded(stripeEvent.data.object as Stripe.PaymentIntent);
+        break;
+
+      case "payment_intent.requires_action":
+        await handlePaymentIntentRequiresAction(stripeEvent.data.object as Stripe.PaymentIntent);
+        break;
+
+      case "charge.refunded":
+        await handleChargeRefunded(stripeEvent.data.object as Stripe.Charge);
         break;
 
       default:
@@ -961,5 +981,170 @@ async function cancelOtherActiveSubs(
       console.error(`[stripe-webhook] Failed to cancel other sub ${sub.stripe_subscription_id}:`, err);
       // Continue — partial state is recoverable on next sync
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Wave 3 Auto Top-Up webhook handlers
+// ---------------------------------------------------------------------------
+
+/**
+ * Handles payment_intent.succeeded for auto_topup payment intents.
+ * Idempotent: allocateTopUpCredits deduplicates on reference_id (DB UNIQUE),
+ * so if auto-topup-charge.ts already allocated credits synchronously, this is
+ * a no-op.
+ */
+async function handlePaymentIntentSucceeded(pi: Stripe.PaymentIntent): Promise<void> {
+  if (pi.metadata?.type !== "auto_topup") {
+    return;
+  }
+
+  const userId = pi.metadata.user_id;
+  const packKey = pi.metadata.pack_key as TopUpPackKey | undefined;
+
+  if (!userId || !packKey) {
+    console.warn("[stripe-webhook] auto_topup PI missing metadata", pi.id);
+    return;
+  }
+
+  const pack = TOPUP_PACKS[packKey];
+  if (!pack) {
+    console.warn("[stripe-webhook] auto_topup PI has unknown pack_key", packKey, pi.id);
+    return;
+  }
+
+  // Idempotent: allocateTopUpCredits no-ops on duplicate reference_id
+  const result = await allocateTopUpCredits(userId, pack.credits, pack.name, pi.id, {
+    autoTopup: true,
+    priceCents: pack.priceCents,
+  });
+  console.log(`[stripe-webhook] payment_intent.succeeded auto_topup pi=${pi.id} allocated=${result.allocated}`);
+}
+
+/**
+ * Handles payment_intent.requires_action for auto_topup payment intents.
+ * Disables auto top-up and sends a 3DS/SCA notification email (throttled 24h).
+ */
+async function handlePaymentIntentRequiresAction(pi: Stripe.PaymentIntent): Promise<void> {
+  if (pi.metadata?.type !== "auto_topup") return;
+
+  const userId = pi.metadata.user_id;
+  if (!userId) {
+    console.warn("[stripe-webhook] requires_action PI missing user_id", pi.id);
+    return;
+  }
+
+  await supabaseAdmin
+    .from("user_credits")
+    .update({
+      auto_topup_enabled: false,
+      auto_topup_disabled_reason: "requires_authentication",
+    })
+    .eq("user_id", userId);
+
+  // Look up profile for email
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("email, first_name")
+    .eq("id", userId)
+    .single();
+
+  if (!profile?.email) return;
+
+  const ok = await shouldSendEmail(userId, "auto_topup_requires_authentication");
+  if (!ok) return;
+
+  const packKey = pi.metadata.pack_key as TopUpPackKey | undefined;
+  const pack = packKey ? TOPUP_PACKS[packKey] : undefined;
+  const dashUrl = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://dashboard.bfeai.com";
+  const rendered = renderAutoTopUpRequiresAuthEmail({
+    firstName: profile.first_name ?? undefined,
+    packName: pack?.name ?? "Top-up",
+    packPriceCents: pack?.priceCents ?? 0,
+    creditsUrl: `${dashUrl}/credits`,
+  });
+  await sendEmail({ to: profile.email, ...rendered });
+  console.log(`[stripe-webhook] requires_action email sent for user ${userId}, pi=${pi.id}`);
+}
+
+/**
+ * Handles charge.refunded. Full refunds trigger a credit clawback (topup_balance
+ * decremented) and an admin notification. Partial refunds route to admin only.
+ */
+async function handleChargeRefunded(charge: Stripe.Charge): Promise<void> {
+  const isFullRefund = charge.amount_refunded >= charge.amount_captured;
+
+  if (!isFullRefund) {
+    console.warn(`[stripe-webhook] Partial refund detected, charge ${charge.id}; manual handling required`);
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (adminEmail) {
+      const rendered = renderAutoTopUpRefundProcessedEmail({
+        chargeId: charge.id,
+        userId: "(partial — see Stripe dashboard)",
+        creditsClawedBack: 0,
+      });
+      await sendEmail({
+        to: adminEmail,
+        subject: `[BFEAI admin] Partial refund — manual handling: ${charge.id}`,
+        html: rendered.html,
+        text: rendered.text,
+      });
+    }
+    return;
+  }
+
+  // Full refund — find the matching topup_purchase transaction
+  const paymentIntentId = typeof charge.payment_intent === "string"
+    ? charge.payment_intent
+    : charge.payment_intent?.id;
+
+  if (!paymentIntentId) {
+    console.warn(`[stripe-webhook] Refunded charge has no payment_intent: ${charge.id}`);
+    return;
+  }
+
+  const { data: txn } = await supabaseAdmin
+    .from("credit_transactions")
+    .select("user_id, amount, app_key")
+    .eq("reference_id", paymentIntentId)
+    .eq("type", "topup_purchase")
+    .maybeSingle();
+
+  if (!txn) {
+    console.warn(`[stripe-webhook] No matching topup_purchase for refunded charge ${charge.id}`);
+    return;
+  }
+
+  // Decrement topup_balance — brief negative allowed per §4.4 race handling
+  const balance = await getBalance(txn.user_id);
+  const newTopup = balance.topupBalance - txn.amount;
+
+  await supabaseAdmin
+    .from("user_credits")
+    .update({ topup_balance: newTopup, updated_at: new Date().toISOString() })
+    .eq("user_id", txn.user_id);
+
+  // Audit log
+  await supabaseAdmin.from("credit_transactions").insert({
+    user_id: txn.user_id,
+    amount: -txn.amount,
+    balance_after: balance.total - txn.amount,
+    pool: "topup",
+    type: "refund_clawback",
+    description: `Refund clawback for charge ${charge.id}`,
+    app_key: txn.app_key ?? null,
+    reference_id: `refund_${charge.id}`,
+  });
+
+  console.log(`[stripe-webhook] Clawed back ${txn.amount} credits from user ${txn.user_id} for refunded charge ${charge.id}`);
+
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (adminEmail) {
+    const rendered = renderAutoTopUpRefundProcessedEmail({
+      chargeId: charge.id,
+      userId: txn.user_id,
+      creditsClawedBack: txn.amount,
+    });
+    await sendEmail({ to: adminEmail, ...rendered });
   }
 }
