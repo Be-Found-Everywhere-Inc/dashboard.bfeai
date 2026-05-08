@@ -32,10 +32,6 @@ export function AppsPage() {
     checkoutLoading,
     createTrialCheckout,
     trialCheckoutLoading,
-    createDualTrialCheckout,
-    dualTrialCheckoutLoading,
-    createBundleCheckout,
-    bundleCheckoutLoading,
     createUnifiedTrialCheckout,
     unifiedTrialCheckoutLoading,
     createTierCheckout,
@@ -114,32 +110,6 @@ export function AppsPage() {
     } catch (error) {
       toast({
         title: "Unable to start trial",
-        description: error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleBundleCheckout = async () => {
-    try {
-      const url = await createBundleCheckout();
-      window.location.href = url;
-    } catch (error) {
-      toast({
-        title: "Unable to start bundle checkout",
-        description: error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDualTrial = async () => {
-    try {
-      const url = await createDualTrialCheckout();
-      window.location.href = url;
-    } catch (error) {
-      toast({
-        title: "Unable to start dual trial",
         description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
@@ -337,74 +307,6 @@ export function AppsPage() {
           </div>
         )}
       </div>
-
-      {/* Dual Trial Bundle Banner — only shown to legacy/grandfathered users */}
-      {hasAvailableApp && hasLegacySub && (
-        <div className="animate-fade-in-up rounded-2xl border border-brand-indigo/20 bg-gradient-to-r from-brand-indigo/8 via-brand-purple/6 to-brand-teal/8 p-5 md:p-6" style={{ animationDelay: '100ms' }}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex -space-x-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-indigo to-brand-purple text-white shadow-lg ring-2 ring-background">
-                  <Search className="h-5 w-5" />
-                </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-teal to-brand-indigo text-white shadow-lg ring-2 ring-background">
-                  <FlaskConical className="h-5 w-5" />
-                </div>
-              </div>
-              <div>
-                <p className="font-heading font-bold text-foreground">
-                  Try Both Apps for $2
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  7-day trial — Keyword Agent + LABS with 100 credits included
-                </p>
-              </div>
-            </div>
-            <Button
-              className="gap-2 btn-press shrink-0"
-              disabled={dualTrialCheckoutLoading}
-              onClick={() => void handleDualTrial()}
-            >
-              {dualTrialCheckoutLoading ? "Redirecting..." : "Start Bundle Trial"}
-              {!dualTrialCheckoutLoading && <Zap className="h-4 w-4" />}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Bundle Subscription Banner — only shown to legacy/grandfathered users */}
-      {hasAvailableApp && hasLegacySub && (
-        <div className="animate-fade-in-up rounded-2xl border border-brand-purple/20 bg-gradient-to-r from-brand-purple/8 via-brand-indigo/6 to-brand-teal/8 p-5 md:p-6" style={{ animationDelay: '150ms' }}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex -space-x-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-indigo to-brand-purple text-white shadow-lg ring-2 ring-background">
-                  <Search className="h-5 w-5" />
-                </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-brand-teal to-brand-indigo text-white shadow-lg ring-2 ring-background">
-                  <FlaskConical className="h-5 w-5" />
-                </div>
-              </div>
-              <div>
-                <p className="font-heading font-bold text-foreground">
-                  Get Both Apps for $49/mo
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Keyword Agent + LABS — 600 credits monthly, $9/mo bundle savings
-                </p>
-              </div>
-            </div>
-            <Button
-              className="gap-2 btn-press shrink-0"
-              disabled={bundleCheckoutLoading}
-              onClick={() => void handleBundleCheckout()}
-            >
-              {bundleCheckoutLoading ? "Redirecting..." : "Subscribe to Bundle"}
-              {!bundleCheckoutLoading && <ArrowUpRight className="h-4 w-4" />}
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Apps Grid */}
       <div className="grid gap-6 md:grid-cols-2">

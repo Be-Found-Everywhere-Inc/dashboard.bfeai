@@ -57,16 +57,6 @@ export const useBilling = () => {
     onSuccess: invalidate,
   });
 
-  const dualTrialCheckoutMutation = useMutation({
-    mutationFn: () => BillingService.createDualTrialCheckout(),
-    onSuccess: invalidate,
-  });
-
-  const bundleCheckoutMutation = useMutation({
-    mutationFn: () => BillingService.createBundleCheckout(),
-    onSuccess: invalidate,
-  });
-
   const unifiedTrialCheckoutMutation = useMutation({
     mutationFn: () => BillingService.createUnifiedTrialCheckout(),
     onSuccess: invalidate,
@@ -120,20 +110,6 @@ export const useBilling = () => {
       return url;
     },
     trialCheckoutLoading: trialCheckoutMutation.isPending,
-
-    // Dual trial checkout ($2 bundle: Keywords + LABS)
-    createDualTrialCheckout: async () => {
-      const { url } = await dualTrialCheckoutMutation.mutateAsync();
-      return url;
-    },
-    dualTrialCheckoutLoading: dualTrialCheckoutMutation.isPending,
-
-    // Bundle checkout (Keywords + LABS, $49/mo)
-    createBundleCheckout: async () => {
-      const { url } = await bundleCheckoutMutation.mutateAsync();
-      return url;
-    },
-    bundleCheckoutLoading: bundleCheckoutMutation.isPending,
 
     // Unified trial checkout ($1/7-day trial on Lite, universal access)
     createUnifiedTrialCheckout: async () => {

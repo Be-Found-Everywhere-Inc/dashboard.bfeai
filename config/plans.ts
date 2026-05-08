@@ -184,60 +184,29 @@ export function getMonthlyCreditsForSubscription(appKey: string, priceId?: strin
   return plan?.monthlyCredits ?? 300; // Default to 300 for safety
 }
 
-/** Bundle discount coupon ID — $9/mo off when user subscribes to 2+ apps individually */
-export const BUNDLE_DISCOUNT_COUPON_ID = getStripeEnv("STRIPE_COUPON_BUNDLE_DISCOUNT");
-
-// ---------------------------------------------------------------------------
-// Bundle plans (config-driven — add new bundles here + create Stripe Price)
-// ---------------------------------------------------------------------------
-
-export type BundlePlan = {
-  slug: string;
-  name: string;
-  appKeys: string[];
-  monthlyPrice: number;
-  stripePriceIdMonthly: string;
-};
-
-export const BUNDLE_PLANS: BundlePlan[] = [
-  {
-    slug: "bundle",
-    name: "Keywords + LABS Bundle",
-    appKeys: ["keywords", "labs"],
-    monthlyPrice: 49,
-    stripePriceIdMonthly: getStripeEnv("STRIPE_PRICE_BUNDLE_MONTHLY"),
-  },
-];
-
-export function findBundlePlan(slug: string): BundlePlan | undefined {
-  return BUNDLE_PLANS.find((b) => b.slug === slug);
-}
-
-/** Find a bundle plan by its Stripe Price ID */
-export function findBundleByPriceId(priceId: string): BundlePlan | undefined {
-  return BUNDLE_PLANS.find((b) => b.stripePriceIdMonthly === priceId);
-}
-
-/** Dual trial $2 setup fee one-time price ID */
-export const DUAL_TRIAL_SETUP_FEE_PRICE_ID = getStripeEnv("STRIPE_PRICE_DUAL_TRIAL_SETUP_FEE");
-
-/** Trial credits allocated on dual trial start */
+/** Trial credits allocated on single-app trial start */
 export const TRIAL_CREDITS = 100;
 
-/** Get trial credits for a given app (100 for dual trial) */
-export function getTrialCreditsForApp(_appKey: string): number {
-  return TRIAL_CREDITS;
-}
+/**
+ * Wave 1.5 grandfather list — 8 customers on the legacy Keywords+LABS bundle
+ * subscription ($49/mo) that pre-dates the universal-access Lite/Plus/Max model.
+ * Their subscriptions continue to receive monthly credit allocations for BOTH
+ * keywords and labs until they churn naturally. No new bundle subscriptions
+ * can be created (UI removed, Stripe product archived 2026-05-08).
+ *
+ * When this set is empty, the remaining bundle code paths in stripe-webhook.ts
+ * (`getAppKeysFromSubscription` allowlist branch + `handleInvoicePaymentSucceeded`
+ * grandfather branch) can be removed in a Wave 1.6 cleanup PR.
+ */
+export const GRANDFATHERED_BUNDLE_SUBSCRIPTION_IDS = new Set<string>([
+  "sub_1T82Sz1WSzyasCxzOUvw7CVq", // btray77@gmail.com
+  "sub_1TTx6L1WSzyasCxzyDzbqGxc", // post@leadpartner.no
+  "sub_1TBj4e1WSzyasCxzlstDEaaI", // tools@denverdigitalagency.com
+  "sub_1TC5cK1WSzyasCxzd1QQQohi", // admin1@turnkeytraffic.tech
+  "sub_1THCZ11WSzyasCxzDw6kTRac", // eriktans@yahoo.com
+  "sub_1TBfN31WSzyasCxzkh1asDCb", // seo@seedhubmedia.com
+  "sub_1T74LH1WSzyasCxzzaobBG5L", // steve.redden@3wisedigital.co.uk
+  "sub_1TCPcb1WSzyasCxzLDp8gLFr", // swilks34@protonmail.com
+]);
 
-/** App keys included in the dual trial */
-export function getDualTrialAppKeys(): string[] {
-  return ["keywords", "labs"];
-}
-
-/** App keys + tiers for dual trial subscription creation */
-export function getDualTrialTiers(): { appKey: string; tier: string }[] {
-  return [
-    { appKey: "keywords", tier: "standard" },
-    { appKey: "labs", tier: "base_tracker" },
-  ];
-}
+export const GRANDFATHERED_BUNDLE_APP_KEYS = ["keywords", "labs"] as const;
