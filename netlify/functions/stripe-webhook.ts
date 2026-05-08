@@ -248,7 +248,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
  * 3. Set metadata on the Stripe subscription so future webhook events route correctly
  * 4. Sync the app_subscriptions table immediately
  * 5. For trial subscriptions, allocate trial credits
- * 6. For payment-mode dual trials ($2), provision both trial subscriptions
  *
  * Returns the userId on success, null on failure.
  */
@@ -346,10 +345,9 @@ async function handlePaymentLinkCheckout(
   }
 
   // -----------------------------------------------------------------------
-  // Payment mode: $2 dual trial setup fee
+  // Payment mode: legacy path — no longer used post-Wave-1.5
   // -----------------------------------------------------------------------
   if (session.mode === "payment") {
-    // Auto-provision BFEAI account if user doesn't exist
     if (!userId) {
       userId = await provisionUnauthenticatedTrialUser(customerId);
       if (!userId) {
@@ -358,7 +356,7 @@ async function handlePaymentLinkCheckout(
       }
     }
 
-    console.warn("[stripe-webhook] Payment Link payment-mode session not handled (no dual-trial flow):", session.id);
+    console.warn("[stripe-webhook] Payment Link payment-mode session not handled:", session.id);
 
     return userId;
   }
