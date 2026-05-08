@@ -339,8 +339,9 @@ export const CancellationDialog = ({
             <DialogHeader>
               <DialogTitle>Confirm cancellation</DialogTitle>
               <DialogDescription>
-                Your subscription will be cancelled at the end of the current
-                billing period.
+                Canceling stops your monthly credit allotment. You'll keep all
+                unused credits and can continue using BFEAI until they're
+                depleted.
               </DialogDescription>
             </DialogHeader>
 
@@ -351,15 +352,18 @@ export const CancellationDialog = ({
                 <AlertDescription className="mt-2 space-y-1">
                   <p>
                     &bull; Your {subscription.planName} subscription will be
-                    cancelled
+                    cancelled at the end of the current billing period
                   </p>
                   <p>
-                    &bull; You keep access until{" "}
+                    &bull; No further monthly credit allotment after{" "}
                     {subscription.nextBillingDate ??
                       "the end of your billing period"}
                   </p>
-                  <p>&bull; No further charges after the current period</p>
-                  <p>&bull; You can resubscribe anytime</p>
+                  <p>
+                    &bull; You keep all unused credits and can continue using
+                    BFEAI until they run out
+                  </p>
+                  <p>&bull; You can resubscribe or top up anytime</p>
                 </AlertDescription>
               </Alert>
 

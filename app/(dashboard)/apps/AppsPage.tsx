@@ -36,6 +36,10 @@ export function AppsPage() {
     dualTrialCheckoutLoading,
     createBundleCheckout,
     bundleCheckoutLoading,
+    createUnifiedTrialCheckout,
+    unifiedTrialCheckoutLoading,
+    createTierCheckout,
+    tierCheckoutLoading,
   } = useBilling();
   const searchParams = useSearchParams();
 
@@ -142,6 +146,40 @@ export function AppsPage() {
     }
   };
 
+  const handleUnifiedTrial = async () => {
+    try {
+      const url = await createUnifiedTrialCheckout();
+      window.location.href = url;
+    } catch (error) {
+      toast({
+        title: "Unable to start trial",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTierCheckout = async (tier: "lite" | "plus" | "max") => {
+    try {
+      const url = await createTierCheckout(tier);
+      window.location.href = url;
+    } catch (error) {
+      toast({
+        title: "Unable to start checkout",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Detect grandfathered legacy subscribers (per-app subs from before unified plans)
+  const hasLegacySub = subscriptions.some(
+    (s) => s.appKey !== 'any' && (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due')
+  );
+  const hasNewTierSub = subscriptions.some(
+    (s) => s.appKey === 'any' && (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due')
+  );
+
   const visibleApps = getActiveApps({ user_tier: userTier });
   const hasAvailableApp = visibleApps.some((app) => getAppStatus(app) === 'available');
 
@@ -189,8 +227,119 @@ export function AppsPage() {
         </div>
       </div>
 
-      {/* Dual Trial Bundle Banner */}
-      {hasAvailableApp && (
+      {/* Unified Tier Plans (Wave 1) */}
+      <div className="animate-fade-in-up space-y-6" style={{ animationDelay: '50ms' }}>
+        <div className="text-center">
+          <h2 className="font-heading text-2xl text-foreground">All plans now include every BFEAI app</h2>
+          <p className="text-sm text-muted-foreground mt-2">
+            Choose your plan based on the credits you need each month.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          {/* Lite */}
+          <Card className="card-hover-lift relative overflow-hidden border-border">
+            <CardHeader>
+              <CardTitle className="font-heading text-xl">Lite</CardTitle>
+              <CardDescription>Starter plan</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <span className="text-3xl font-bold">$49</span>
+                <span className="text-sm text-muted-foreground">/mo</span>
+              </div>
+              <ul className="text-sm space-y-1.5 text-muted-foreground">
+                <li>500 credits/month</li>
+                <li>All BFEAI apps included</li>
+                <li>Credits cap at 1,500</li>
+              </ul>
+              <Button
+                className="w-full btn-press"
+                onClick={() => void handleTierCheckout('lite')}
+                disabled={tierCheckoutLoading}
+              >
+                {tierCheckoutLoading ? "Redirecting..." : "Subscribe"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Plus (Recommended) */}
+          <Card className="card-hover-lift relative overflow-hidden border-brand-indigo/40 shadow-md">
+            <div className="absolute top-0 right-0 bg-brand-indigo px-3 py-1 text-xs font-semibold text-white rounded-bl-lg">
+              Recommended
+            </div>
+            <CardHeader>
+              <CardTitle className="font-heading text-xl">Plus</CardTitle>
+              <CardDescription>For growing teams</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <span className="text-3xl font-bold">$144</span>
+                <span className="text-sm text-muted-foreground">/mo</span>
+              </div>
+              <ul className="text-sm space-y-1.5 text-muted-foreground">
+                <li>1,700 credits/month</li>
+                <li>All BFEAI apps included</li>
+                <li>Credits cap at 5,100</li>
+              </ul>
+              <Button
+                className="w-full btn-press"
+                onClick={() => void handleTierCheckout('plus')}
+                disabled={tierCheckoutLoading}
+              >
+                {tierCheckoutLoading ? "Redirecting..." : "Subscribe"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Max */}
+          <Card className="card-hover-lift relative overflow-hidden border-border">
+            <CardHeader>
+              <CardTitle className="font-heading text-xl">Max</CardTitle>
+              <CardDescription>Power users</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <span className="text-3xl font-bold">$444</span>
+                <span className="text-sm text-muted-foreground">/mo</span>
+              </div>
+              <ul className="text-sm space-y-1.5 text-muted-foreground">
+                <li>5,500 credits/month</li>
+                <li>All BFEAI apps included</li>
+                <li>Credits cap at 16,500</li>
+              </ul>
+              <Button
+                className="w-full btn-press"
+                onClick={() => void handleTierCheckout('max')}
+                disabled={tierCheckoutLoading}
+              >
+                {tierCheckoutLoading ? "Redirecting..." : "Subscribe"}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Unified trial CTA */}
+        {!hasNewTierSub && !hasLegacySub && (
+          <div className="text-center">
+            <Button
+              variant="outline"
+              className="gap-2 btn-press"
+              disabled={unifiedTrialCheckoutLoading}
+              onClick={() => void handleUnifiedTrial()}
+            >
+              {unifiedTrialCheckoutLoading ? "Redirecting..." : "Try free for 7 days for $1"}
+              {!unifiedTrialCheckoutLoading && <Zap className="h-4 w-4" />}
+            </Button>
+            <p className="text-xs text-muted-foreground mt-2">
+              Then $49/month for Lite (500 credits/mo). Cancel anytime.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Dual Trial Bundle Banner — only shown to legacy/grandfathered users */}
+      {hasAvailableApp && hasLegacySub && (
         <div className="animate-fade-in-up rounded-2xl border border-brand-indigo/20 bg-gradient-to-r from-brand-indigo/8 via-brand-purple/6 to-brand-teal/8 p-5 md:p-6" style={{ animationDelay: '100ms' }}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
@@ -223,8 +372,8 @@ export function AppsPage() {
         </div>
       )}
 
-      {/* Bundle Subscription Banner */}
-      {hasAvailableApp && (
+      {/* Bundle Subscription Banner — only shown to legacy/grandfathered users */}
+      {hasAvailableApp && hasLegacySub && (
         <div className="animate-fade-in-up rounded-2xl border border-brand-purple/20 bg-gradient-to-r from-brand-purple/8 via-brand-indigo/6 to-brand-teal/8 p-5 md:p-6" style={{ animationDelay: '150ms' }}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
@@ -339,7 +488,7 @@ export function AppsPage() {
                   )}
 
                   <div className="flex gap-2 pt-2">
-                    {status === 'subscribed' || status === 'trialing' ? (
+                    {status === 'subscribed' || status === 'trialing' || hasNewTierSub ? (
                       <>
                         <Button
                           className="flex-1 gap-2 btn-press"
@@ -356,7 +505,7 @@ export function AppsPage() {
                           Details
                         </Button>
                       </>
-                    ) : (
+                    ) : hasLegacySub ? (
                       <>
                         <Button
                           className="flex-1 gap-2 btn-press"
@@ -382,6 +531,14 @@ export function AppsPage() {
                           Learn More
                         </Button>
                       </>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="flex-1 btn-press"
+                        onClick={() => setSelectedApp(app.key)}
+                      >
+                        Learn More
+                      </Button>
                     )}
                   </div>
                 </CardContent>

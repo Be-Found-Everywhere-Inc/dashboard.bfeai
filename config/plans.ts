@@ -7,6 +7,9 @@
 
 import { getStripeEnv } from "../lib/stripe-env";
 
+/** Sentinel app_key for plans that grant access to all apps */
+export const UNIVERSAL_APP_KEY = "any" as const;
+
 export type TopUpPackKey = "starter" | "builder" | "power" | "pro" | "max";
 
 export type TopUpPack = {
@@ -14,16 +17,63 @@ export type TopUpPack = {
   name: string;
   credits: number;
   price: number;
+  priceCents: number;
+  priceId: string;
   perCredit: string;
   approxRuns: number;
 };
 
 export const TOPUP_PACKS: Record<TopUpPackKey, TopUpPack> = {
-  starter: { key: "starter", name: "Starter Boost", credits: 75, price: 9, perCredit: "$0.120", approxRuns: 3 },
-  builder: { key: "builder", name: "Builder Pack", credits: 270, price: 29, perCredit: "$0.107", approxRuns: 13 },
-  power: { key: "power", name: "Power Pack", credits: 980, price: 99, perCredit: "$0.101", approxRuns: 49 },
-  pro: { key: "pro", name: "Pro Pack", credits: 2500, price: 249, perCredit: "$0.100", approxRuns: 125 },
-  max: { key: "max", name: "Max Pack", credits: 5250, price: 499, perCredit: "$0.095", approxRuns: 262 },
+  starter: {
+    key: "starter",
+    name: "Starter Boost",
+    credits: 75,
+    price: 9,
+    priceCents: 900,
+    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_STARTER", "price_topup_starter"),
+    perCredit: "$0.120",
+    approxRuns: 3,
+  },
+  builder: {
+    key: "builder",
+    name: "Builder Pack",
+    credits: 270,
+    price: 29,
+    priceCents: 2900,
+    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_BUILDER", "price_topup_builder"),
+    perCredit: "$0.107",
+    approxRuns: 13,
+  },
+  power: {
+    key: "power",
+    name: "Power Pack",
+    credits: 980,
+    price: 99,
+    priceCents: 9900,
+    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_POWER", "price_topup_power"),
+    perCredit: "$0.101",
+    approxRuns: 49,
+  },
+  pro: {
+    key: "pro",
+    name: "Pro Pack",
+    credits: 2500,
+    price: 249,
+    priceCents: 24900,
+    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_PRO", "price_topup_pro"),
+    perCredit: "$0.100",
+    approxRuns: 125,
+  },
+  max: {
+    key: "max",
+    name: "Max Pack",
+    credits: 5250,
+    price: 499,
+    priceCents: 49900,
+    priceId: getStripeEnv("STRIPE_PRICE_TOPUP_MAX", "price_topup_max"),
+    perCredit: "$0.095",
+    approxRuns: 262,
+  },
 };
 
 export const TOPUP_PACK_ORDER: TopUpPackKey[] = ["starter", "builder", "power", "pro", "max"];
@@ -53,17 +103,6 @@ export const LABS_BASE_SUBSCRIPTION = {
   stripePriceIdYearly: getStripeEnv("STRIPE_PRICE_LABS_BASE_YEARLY"),
 } as const;
 
-/** LABS AEO Consultant: $79/mo, 900 credits, caps at 2700 */
-export const LABS_AEO_SUBSCRIPTION = {
-  appKey: "labs",
-  tier: "aeo_consultant",
-  monthlyPrice: 79,
-  monthlyCredits: 900,
-  creditCap: 2700,
-  stripePriceIdMonthly: getStripeEnv("STRIPE_PRICE_LABS_AEO_MONTHLY"),
-  stripePriceIdYearly: getStripeEnv("STRIPE_PRICE_LABS_AEO_YEARLY"),
-} as const;
-
 /** OffPage Agent: $49/mo, 500 credits, caps at 1500 */
 export const OFFPAGE_SUBSCRIPTION = {
   appKey: "offpage",
@@ -75,16 +114,50 @@ export const OFFPAGE_SUBSCRIPTION = {
   stripePriceIdYearly: getStripeEnv("STRIPE_PRICE_OFFPAGE_YEARLY"),
 } as const;
 
+/** Lite: $49/mo, 500 credits, caps at 1500 — universal access */
+export const LITE_PLAN = {
+  appKey: UNIVERSAL_APP_KEY,
+  tier: "lite",
+  monthlyPrice: 49,
+  monthlyCredits: 500,
+  creditCap: 1500,
+  stripePriceIdMonthly: getStripeEnv("STRIPE_PRICE_LITE_MONTHLY"),
+} as const;
+
+/** Plus: $144/mo, 1700 credits, caps at 5100 — universal access */
+export const PLUS_PLAN = {
+  appKey: UNIVERSAL_APP_KEY,
+  tier: "plus",
+  monthlyPrice: 144,
+  monthlyCredits: 1700,
+  creditCap: 5100,
+  stripePriceIdMonthly: getStripeEnv("STRIPE_PRICE_PLUS_MONTHLY"),
+} as const;
+
+/** Max: $444/mo, 5500 credits, caps at 16500 — universal access */
+export const MAX_PLAN = {
+  appKey: UNIVERSAL_APP_KEY,
+  tier: "max",
+  monthlyPrice: 444,
+  monthlyCredits: 5500,
+  creditCap: 16500,
+  stripePriceIdMonthly: getStripeEnv("STRIPE_PRICE_MAX_MONTHLY"),
+} as const;
+
 /** All subscription plans for lookup */
 export const ALL_SUBSCRIPTIONS = [
-  KEYWORDS_SUBSCRIPTION,
-  LABS_BASE_SUBSCRIPTION,
-  LABS_AEO_SUBSCRIPTION,
-  OFFPAGE_SUBSCRIPTION,
+  LITE_PLAN,                                  // new
+  PLUS_PLAN,                                  // new
+  MAX_PLAN,                                   // new
+  KEYWORDS_SUBSCRIPTION,                      // legacy (grandfathered)
+  LABS_BASE_SUBSCRIPTION,                     // legacy (grandfathered)
+  OFFPAGE_SUBSCRIPTION,                       // legacy (grandfathered)
 ] as const;
 
 /** Find a subscription plan by appKey and optional tier */
 export function findSubscriptionPlan(appKey: string, tier?: string) {
+  // Sentinel "any" must always be resolved by priceId, never by appKey
+  if (appKey === UNIVERSAL_APP_KEY) return null;
   return ALL_SUBSCRIPTIONS.find(
     (p) => p.appKey === appKey && (!tier || p.tier === tier)
   );
@@ -93,7 +166,9 @@ export function findSubscriptionPlan(appKey: string, tier?: string) {
 /** Find a subscription plan by its Stripe Price ID */
 export function findSubscriptionByPriceId(priceId: string) {
   return ALL_SUBSCRIPTIONS.find(
-    (p) => p.stripePriceIdMonthly === priceId || p.stripePriceIdYearly === priceId
+    (p) =>
+      p.stripePriceIdMonthly === priceId ||
+      ("stripePriceIdYearly" in p && p.stripePriceIdYearly === priceId)
   );
 }
 

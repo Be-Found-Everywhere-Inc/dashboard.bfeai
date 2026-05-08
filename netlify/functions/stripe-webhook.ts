@@ -305,6 +305,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   // --- Beta tester auto-tagging via promo code ---
   await detectAndTagBetaTester(session, userId);
+
+  // --- Cancel-other-subs: enforce "one sub per user" rule ---
+  const newSubscriptionId = typeof session.subscription === "string"
+    ? session.subscription
+    : (session.subscription as { id: string } | null)?.id ?? null;
+  await cancelOtherActiveSubs(userId, newSubscriptionId);
 }
 
 // ---------------------------------------------------------------------------
@@ -1016,4 +1022,51 @@ async function handleCustomerUpdated(customer: Stripe.Customer) {
   }
 
   console.log(`[stripe-webhook] Synced billing info to profile for user ${userId}: ${Object.keys(updates).filter(k => k !== "updated_at").join(", ")}`);
+}
+
+/**
+ * Cancel all OTHER active/trialing/past_due subscriptions for a user when they
+ * complete checkout for a new sub. Enforces the "one sub per user" rule.
+ *
+ * For trialing subs, merges any remaining trial credits into the new sub's
+ * subscription pool BEFORE canceling, so they aren't lost via expireTrialCredits.
+ */
+async function cancelOtherActiveSubs(
+  userId: string,
+  newSubscriptionId: string | null
+): Promise<void> {
+  if (!newSubscriptionId) return;
+
+  const { data: otherActiveSubs } = await supabaseAdmin
+    .from("app_subscriptions")
+    .select("stripe_subscription_id, status, app_key")
+    .eq("user_id", userId)
+    .neq("stripe_subscription_id", newSubscriptionId)
+    .in("status", ["active", "trialing", "past_due"]);
+
+  for (const sub of otherActiveSubs ?? []) {
+    if (!sub.stripe_subscription_id) continue;
+
+    // Trial-merge before cancel: prevents expireTrialCredits from zeroing them
+    if (sub.status === "trialing") {
+      try {
+        await mergeTrialCredits(userId, sub.app_key);
+        console.log(`[stripe-webhook] Merged trial credits for ${sub.app_key} before canceling sub ${sub.stripe_subscription_id}`);
+      } catch (err) {
+        console.error(`[stripe-webhook] Trial-merge failed for sub ${sub.stripe_subscription_id}:`, err);
+        // Continue with cancellation regardless — better to have the sub canceled than abort
+      }
+    }
+
+    try {
+      await stripe.subscriptions.cancel(sub.stripe_subscription_id, {
+        prorate: false,
+        invoice_now: false,
+      });
+      console.log(`[stripe-webhook] Canceled other sub ${sub.stripe_subscription_id} after new checkout for user ${userId}`);
+    } catch (err) {
+      console.error(`[stripe-webhook] Failed to cancel other sub ${sub.stripe_subscription_id}:`, err);
+      // Continue — partial state is recoverable on next sync
+    }
+  }
 }

@@ -168,6 +168,20 @@ export const BillingService = {
       body: JSON.stringify({ bundle: true }),
     }),
 
+  /** Create a Unified Trial Checkout Session ($1/7-day trial on Lite, universal access). */
+  createUnifiedTrialCheckout: () =>
+    authenticatedFetch<{ url: string }>("stripe-checkout", {
+      method: "POST",
+      body: JSON.stringify({ unifiedTrial: true }),
+    }),
+
+  /** Create a Tier Subscription Checkout (Lite/Plus/Max, universal access). */
+  createTierCheckout: (tier: "lite" | "plus" | "max") =>
+    authenticatedFetch<{ url: string }>("stripe-checkout", {
+      method: "POST",
+      body: JSON.stringify({ appKey: "any", tier }),
+    }),
+
   /**
    * Cancel subscription with retention offer flow.
    *

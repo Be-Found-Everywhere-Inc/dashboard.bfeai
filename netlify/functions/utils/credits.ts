@@ -123,12 +123,23 @@ export const deductCredits = async (
   const cost = await getCreditCost(appKey, operation);
   const balance = await getBalance(userId);
 
-  if (balance.total < cost) {
+  // Allow brief negative balance up to -cost (race-condition tolerance).
+  // Pre-flight checkCredits should have caught insufficient balance at op start;
+  // this path triggers when another tab/op spent during the work.
+  const allowableNegativeFloor = -cost;
+  const projectedBalance = balance.total - cost;
+
+  if (projectedBalance < allowableNegativeFloor) {
+    // Even with the race allowance, this is insufficient — pre-flight should have caught it.
     throw new HttpError(402, "Insufficient credits", {
       required: cost,
       available: balance.total,
     });
   }
+
+  // Race detection: log if we're going negative
+  const isNegativeRace = balance.total < cost;
+  const deductionType = isNegativeRace ? "negative_balance_race" : "usage_deduction";
 
   const now = new Date().toISOString();
   let lastTransactionId = "";
@@ -165,7 +176,7 @@ export const deductCredits = async (
         amount: -deductFromTrial,
         balance_after: balance.total - deductFromTrial,
         pool: "trial",
-        type: "usage_deduction",
+        type: deductionType,
         description: `${operation} (${appKey})`,
         app_key: appKey,
         reference_id: referenceId ?? null,
@@ -184,7 +195,7 @@ export const deductCredits = async (
         amount: -deductFromTopup,
         balance_after: balance.total - deductFromTrial - deductFromTopup,
         pool: "topup",
-        type: "usage_deduction",
+        type: deductionType,
         description: `${operation} (${appKey})`,
         app_key: appKey,
         reference_id: referenceId ?? null,
@@ -203,7 +214,7 @@ export const deductCredits = async (
         amount: -deductFromSub,
         balance_after: newBalance,
         pool: "subscription",
-        type: "usage_deduction",
+        type: deductionType,
         description: `${operation} (${appKey})`,
         app_key: appKey,
         reference_id: referenceId ?? null,
@@ -248,23 +259,21 @@ export const allocateSubscriptionCredits = async (
 ): Promise<AllocateResult> => {
   await ensureUserCreditsRow(userId);
 
-  // Idempotency: skip if credits were already allocated for this app in the
-  // current billing window. Multiple webhook events (invoice.payment_succeeded
-  // + checkout.session.completed) may both attempt allocation for the same period.
+  // Idempotency: skip if this exact reference_id was already used for a
+  // subscription_allocation. Replaces the prior 5-min/app_key dedup that
+  // blocked legitimate Lite -> Plus same-day upgrades (both use app_key="any").
   if (referenceId) {
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const { data: existing } = await supabaseAdmin
       .from("credit_transactions")
       .select("id")
       .eq("user_id", userId)
-      .eq("app_key", appKey)
+      .eq("reference_id", referenceId)
       .eq("type", "subscription_allocation")
-      .gte("created_at", fiveMinutesAgo)
       .limit(1);
 
     if (existing && existing.length > 0) {
       const balance = await getBalance(userId);
-      console.log(`[credits] Skipping duplicate allocation for ${appKey}, user ${userId} (ref: ${referenceId})`);
+      console.log(`[credits] Skipping duplicate allocation by reference_id for user ${userId} (ref: ${referenceId})`);
       return { newBalance: balance.total, allocated: 0 };
     }
   }
@@ -318,6 +327,25 @@ export const allocateTopUpCredits = async (
   referenceId?: string
 ): Promise<AllocateResult> => {
   await ensureUserCreditsRow(userId);
+
+  // Idempotency: skip if this exact reference_id was already used for a topup.
+  // Critical for Wave 3 where sync auto-topup-charge + webhook race for same PaymentIntent.
+  if (referenceId) {
+    const { data: existing } = await supabaseAdmin
+      .from("credit_transactions")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("reference_id", referenceId)
+      .eq("type", "topup_purchase")
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      const balance = await getBalance(userId);
+      console.log(`[credits] Skipping duplicate topup allocation by reference_id for user ${userId} (ref: ${referenceId})`);
+      return { newBalance: balance.total, allocated: 0 };
+    }
+  }
+
   const balance = await getBalance(userId);
 
   const newTopup = balance.topupBalance + amount;
@@ -615,7 +643,7 @@ export const recalculateSubscriptionCap = async (
 ): Promise<number> => {
   const { data: subs, error } = await supabaseAdmin
     .from("app_subscriptions")
-    .select("app_key, stripe_price_id, status")
+    .select("app_key, stripe_price_id, stripe_subscription_id, status")
     .eq("user_id", userId)
     .in("status", ["active", "trialing", "past_due"]);
 
@@ -630,7 +658,6 @@ export const recalculateSubscriptionCap = async (
     totalCap = 900; // Default cap for users with no active subs
   } else {
     for (const sub of subs) {
-      // Try price ID lookup first (handles multi-tier apps like LABS)
       const plan = sub.stripe_price_id
         ? findSubscriptionByPriceId(sub.stripe_price_id)
         : null;
@@ -638,8 +665,14 @@ export const recalculateSubscriptionCap = async (
       if (plan) {
         totalCap += plan.creditCap;
       } else {
-        // Fallback to first plan matching app_key
         const fallback = findSubscriptionPlan(sub.app_key);
+        if (!fallback) {
+          // Sentinel app_key with unresolvable priceId — loud warning, default cap
+          console.warn(
+            `[credits] Could not resolve plan for sub ${sub.stripe_subscription_id ?? 'unknown'} ` +
+            `with priceId ${sub.stripe_price_id ?? 'none'}, app_key=${sub.app_key}. Cap defaulted to 900.`
+          );
+        }
         totalCap += fallback?.creditCap ?? 900;
       }
     }
