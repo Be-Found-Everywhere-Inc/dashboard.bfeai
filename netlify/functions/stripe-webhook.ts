@@ -18,7 +18,7 @@ import {
   mergeTrialCredits,
   recalculateSubscriptionCap,
 } from "./utils/credits";
-import { getMonthlyCreditsForSubscription, getTrialCreditsForApp, findSubscriptionByPriceId, findSubscriptionPlan } from "../../config/plans";
+import { getMonthlyCreditsForSubscription, TRIAL_CREDITS, findSubscriptionByPriceId, findSubscriptionPlan } from "../../config/plans";
 import { sendTrialReminderEmail, sendWelcomeEmail } from "./utils/email";
 import type Stripe from "stripe";
 
@@ -195,7 +195,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   } else if (metadataType === "trial") {
     // Legacy single-app trial checkout (kept for backward compat)
     const appKey = session.metadata?.app_key ?? "keywords";
-    const trialCredits = getTrialCreditsForApp(appKey);
+    const trialCredits = TRIAL_CREDITS;
 
     // Trial ends 7 days from now
     const trialEndsAt = new Date();
@@ -317,7 +317,7 @@ async function handlePaymentLinkCheckout(
         : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
       for (const appKey of appKeys) {
-        const trialCredits = getTrialCreditsForApp(appKey);
+        const trialCredits = TRIAL_CREDITS;
         await allocateTrialCredits(userId, trialCredits, appKey, trialEndsAt, `plink_trial_${session.id}`);
       }
       console.log(`[stripe-webhook] Payment Link trial: allocated credits for user ${userId}, apps: ${appKeys.join(",")}, expires: ${trialEndsAt.toISOString()}`);

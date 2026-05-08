@@ -4,7 +4,6 @@ import { supabaseAdmin } from "./supabase-admin";
 import {
   findSubscriptionByPriceId,
   findSubscriptionPlan,
-  getTrialCreditsForApp,
 } from "../../../config/plans";
 import { getStripeEnv } from "../../../lib/stripe-env";
 
