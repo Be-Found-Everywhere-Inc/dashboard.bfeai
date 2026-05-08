@@ -27,6 +27,16 @@ export type BillingInvoice = {
   pdfUrl: string | null;
 };
 
+export type AutoTopUpState = {
+  enabled: boolean;
+  packKey: string | null;
+  capCents: number;
+  mtdSpentCents: number;
+  lastChargeAt: string | null;
+  paymentMethodLast4: string | null;
+  disabledReason: string | null;
+};
+
 export type CreditBalance = {
   subscriptionBalance: number;
   topupBalance: number;
@@ -39,6 +49,8 @@ export type CreditBalance = {
   lastSkippedScanAt: string | null;
   /** When the user last dismissed the skipped-scan banner. */
   lastSkippedScanDismissedAt: string | null;
+  /** Auto top-up configuration and current-month spend state (Wave 3). */
+  autoTopup: AutoTopUpState;
 };
 
 export type CreditTransaction = {
