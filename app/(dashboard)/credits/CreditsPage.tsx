@@ -1,16 +1,27 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@bfeai/ui";
 import { useCredits } from "@/hooks/useCredits";
 import { CreditBalanceCard } from "@/components/billing/CreditBalanceCard";
 import { CreditHistoryTable } from "@/components/billing/CreditHistoryTable";
 import { SkippedScanBanner } from "@/components/billing/SkippedScanBanner";
 import { TopUpPacksGrid } from "@/components/billing/TopUpPacksGrid";
+import { AutoTopUpSection } from "./components/AutoTopUpSection";
+import { AutoTopUpDisabledBox } from "./components/AutoTopUpDisabledBox";
+import { toast } from "@bfeai/ui";
 
 const PAGE_SIZE = 20;
 
-export function CreditsPage() {
+// Stripe publishable key — resolved at build/runtime from env
+const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+
+type CreditsPageProps = {
+  /** Server-side beta gate: hide auto-topup UI for non-beta users. */
+  isBetaUser?: boolean;
+};
+
+export function CreditsPage({ isBetaUser = false }: CreditsPageProps) {
   const [page, setPage] = useState(0);
 
   const {
@@ -21,7 +32,79 @@ export function CreditsPage() {
     historyLoading,
     purchaseTopUp,
     topUpLoading,
+    refetch,
   } = useCredits(PAGE_SIZE, page * PAGE_SIZE);
+
+  // -------------------------------------------------------------------------
+  // Auto top-up backend helpers
+  // -------------------------------------------------------------------------
+
+  const handleUpdate = useCallback(
+    async (patch: Record<string, unknown>) => {
+      const res = await fetch("/.netlify/functions/settings-billing-update", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error((json as { error?: string }).error ?? "Failed to save settings");
+      }
+      // Refresh balance so autoTopup state is up to date
+      refetch();
+    },
+    [refetch]
+  );
+
+  const handleRequestSetupIntent = useCallback(async () => {
+    const res = await fetch("/.netlify/functions/setup-intent-create", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error((json as { error?: string }).error ?? "Failed to create setup intent");
+    }
+    return res.json() as Promise<{
+      client_secret: string;
+      existing_pm: { last4: string; brand: string } | null;
+    }>;
+  }, []);
+
+  // Toast wrapper for top-level errors from auto-topup actions
+  const handleUpdateWithToast = useCallback(
+    async (patch: Parameters<typeof handleUpdate>[0]) => {
+      try {
+        await handleUpdate(patch);
+      } catch (err) {
+        toast({
+          title: "Could not save auto top-up settings",
+          description: err instanceof Error ? err.message : "Please try again.",
+          variant: "destructive",
+        });
+        throw err; // re-throw so child component can show inline error too
+      }
+    },
+    [handleUpdate]
+  );
+
+  // -------------------------------------------------------------------------
+  // Determine which auto-topup UI to show
+  // -------------------------------------------------------------------------
+
+  const autoTopup = balance?.autoTopup ?? null;
+  const showDisabledBox =
+    isBetaUser &&
+    autoTopup !== null &&
+    autoTopup.disabledReason !== null &&
+    autoTopup.disabledReason !== "user_disabled";
+
+  const showMainSection =
+    isBetaUser &&
+    autoTopup !== null &&
+    !showDisabledBox;
 
   return (
     <div className="space-y-8">
@@ -72,6 +155,37 @@ export function CreditsPage() {
       <div className="animate-fade-in-up" style={{ animationDelay: '300ms' }}>
         <TopUpPacksGrid onPurchase={purchaseTopUp} purchaseLoading={topUpLoading} />
       </div>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Auto top-up settings (Wave 3 — beta users only)                     */}
+      {/* ------------------------------------------------------------------ */}
+
+      {/* Disabled-state box: shown when a system reason disabled auto-topup */}
+      {showDisabledBox && autoTopup && (
+        <div className="animate-fade-in-up" style={{ animationDelay: '350ms' }}>
+          <AutoTopUpDisabledBox
+            autoTopup={autoTopup}
+            stripePublishableKey={STRIPE_PK}
+            onUpdate={handleUpdateWithToast}
+            onRequestSetupIntent={handleRequestSetupIntent}
+          />
+        </div>
+      )}
+
+      {/* Main settings panel: shown when no system disabled-reason */}
+      {showMainSection && autoTopup && (
+        <div className="animate-fade-in-up" style={{ animationDelay: '350ms' }}>
+          {/* TODO: pass stripePortalUrl once BillingService.createPortalSession()
+              is plumbed through CreditsPage. BillingPage already uses
+              createPortalSession — share that hook or lift the URL here. */}
+          <AutoTopUpSection
+            autoTopup={autoTopup}
+            stripePublishableKey={STRIPE_PK}
+            onUpdate={handleUpdateWithToast}
+            onRequestSetupIntent={handleRequestSetupIntent}
+          />
+        </div>
+      )}
 
       {/* Transaction history */}
       <Card className="animate-fade-in-up" style={{ animationDelay: '400ms' }}>
