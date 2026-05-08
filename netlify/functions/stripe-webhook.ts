@@ -18,7 +18,14 @@ import {
   mergeTrialCredits,
   recalculateSubscriptionCap,
 } from "./utils/credits";
-import { getMonthlyCreditsForSubscription, TRIAL_CREDITS, findSubscriptionByPriceId, findSubscriptionPlan } from "../../config/plans";
+import {
+  getMonthlyCreditsForSubscription,
+  TRIAL_CREDITS,
+  findSubscriptionByPriceId,
+  findSubscriptionPlan,
+  GRANDFATHERED_BUNDLE_SUBSCRIPTION_IDS,
+  GRANDFATHERED_BUNDLE_APP_KEYS,
+} from "../../config/plans";
 import { sendTrialReminderEmail, sendWelcomeEmail } from "./utils/email";
 import type Stripe from "stripe";
 
@@ -128,12 +135,16 @@ function getAppKeysFromPriceIds(subscription: Stripe.Subscription): string[] {
 }
 
 /**
- * Extract app keys from a subscription's metadata.
- * Bundle subscriptions have type="bundle" and app_keys="keywords,labs".
- * Regular subscriptions have app_key="keywords" (or "labs").
- * Falls back to price ID detection for Payment Link subscriptions that lack metadata.
+ * Extract app keys from a subscription.
+ * Regular subscriptions have metadata.app_key="keywords" (or "labs").
+ * Falls back to price ID detection for Payment Link subscriptions.
+ * Wave 1.5 grandfather: 8 legacy bundle subs return ["keywords","labs"] so
+ * cancellation/update events propagate to both app_subscriptions rows.
  */
 function getAppKeysFromSubscription(subscription: Stripe.Subscription): string[] {
+  if (GRANDFATHERED_BUNDLE_SUBSCRIPTION_IDS.has(subscription.id)) {
+    return [...GRANDFATHERED_BUNDLE_APP_KEYS];
+  }
   if (subscription.metadata?.app_key) {
     return [subscription.metadata.app_key];
   }
@@ -537,6 +548,26 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   const subscriptionId = typeof subscriptionRef === "string"
     ? subscriptionRef
     : (subscriptionRef as { id: string }).id;
+
+  // Wave 1.5 grandfather: 8 legacy bundle subs allocate to BOTH keywords + labs.
+  // Skip the rest of this handler — the trial-merge / single-app allocation paths
+  // below assume one app_key. Allocate explicitly for both grandfathered apps and return.
+  if (GRANDFATHERED_BUNDLE_SUBSCRIPTION_IDS.has(subscriptionId)) {
+    for (const appKey of GRANDFATHERED_BUNDLE_APP_KEYS) {
+      const monthlyCredits = getMonthlyCreditsForSubscription(appKey);
+      const { allocated } = await allocateSubscriptionCredits(
+        userId,
+        monthlyCredits,
+        appKey,
+        `${invoice.id}:${appKey}`,
+      );
+      console.log(
+        `[stripe-webhook] Grandfathered bundle: allocated ${allocated}/${monthlyCredits} for ${appKey}, user ${userId} (invoice: ${invoice.id})`,
+      );
+    }
+    await recalculateSubscriptionCap(userId);
+    return;
+  }
 
   let appKey = "keywords";
   let priceId: string | undefined;

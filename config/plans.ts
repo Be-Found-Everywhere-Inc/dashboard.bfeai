@@ -186,3 +186,27 @@ export function getMonthlyCreditsForSubscription(appKey: string, priceId?: strin
 
 /** Trial credits allocated on single-app trial start */
 export const TRIAL_CREDITS = 100;
+
+/**
+ * Wave 1.5 grandfather list — 8 customers on the legacy Keywords+LABS bundle
+ * subscription ($49/mo) that pre-dates the universal-access Lite/Plus/Max model.
+ * Their subscriptions continue to receive monthly credit allocations for BOTH
+ * keywords and labs until they churn naturally. No new bundle subscriptions
+ * can be created (UI removed, Stripe product archived 2026-05-08).
+ *
+ * When this set is empty, the remaining bundle code paths in stripe-webhook.ts
+ * (`getAppKeysFromSubscription` allowlist branch + `handleInvoicePaymentSucceeded`
+ * grandfather branch) can be removed in a Wave 1.6 cleanup PR.
+ */
+export const GRANDFATHERED_BUNDLE_SUBSCRIPTION_IDS = new Set<string>([
+  "sub_1T82Sz1WSzyasCxzOUvw7CVq", // btray77@gmail.com
+  "sub_1TTx6L1WSzyasCxzyDzbqGxc", // post@leadpartner.no
+  "sub_1TBj4e1WSzyasCxzlstDEaaI", // tools@denverdigitalagency.com
+  "sub_1TC5cK1WSzyasCxzd1QQQohi", // admin1@turnkeytraffic.tech
+  "sub_1THCZ11WSzyasCxzDw6kTRac", // eriktans@yahoo.com
+  "sub_1TBfN31WSzyasCxzkh1asDCb", // seo@seedhubmedia.com
+  "sub_1T74LH1WSzyasCxzzaobBG5L", // steve.redden@3wisedigital.co.uk
+  "sub_1TCPcb1WSzyasCxzLDp8gLFr", // swilks34@protonmail.com
+]);
+
+export const GRANDFATHERED_BUNDLE_APP_KEYS = ["keywords", "labs"] as const;
