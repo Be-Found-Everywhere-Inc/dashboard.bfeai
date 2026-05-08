@@ -4,16 +4,11 @@ import {
   stripe,
   createPublicTrialCheckoutSession,
   checkTrialEligibility,
-  checkDualTrialEligibility,
-  createDualTrialCheckoutSession,
   getUserIdFromStripeCustomer,
   getOrCreateStripeCustomerByEmail,
 } from "./utils/stripe";
 import {
   findSubscriptionPlan,
-  findBundlePlan,
-  BUNDLE_PLANS,
-  DUAL_TRIAL_SETUP_FEE_PRICE_ID,
 } from "../../config/plans";
 import { getStripeEnv } from "../../lib/stripe-env";
 import { Ratelimit } from "@upstash/ratelimit";
@@ -86,10 +81,8 @@ const CANCEL_URL = `${DASHBOARD_URL}/?checkout=cancelled`;
 const VALID_PLANS = new Set([
   "keywords-trial",   // $1 Keywords 7-day trial
   "labs-trial",        // $1 LABS 7-day trial
-  "bundle-trial",      // $2 Keywords + LABS 7-day trial
   "keywords",          // $29/mo Keywords subscription
   "labs",              // $29/mo LABS subscription
-  ...BUNDLE_PLANS.map((b) => b.slug),  // bundle slugs (config-driven)
 ]);
 
 // ---------------------------------------------------------------------------
@@ -107,7 +100,7 @@ export const handler: Handler = async (event) => {
 
   // -------------------------------------------------------------------------
   // GET: Direct checkout links for WordPress CTA buttons
-  // Usage: ?plan=keywords-trial | labs-trial | bundle-trial | keywords | labs | bundle
+  // Usage: ?plan=keywords-trial | labs-trial | keywords | labs
   // No login required — Stripe collects email, webhook provisions BFEAI account.
   // -------------------------------------------------------------------------
   if (event.httpMethod === "GET") {
@@ -229,34 +222,6 @@ async function createCheckoutSessionForPlan(plan: string): Promise<Stripe.Checko
       });
     }
 
-    // ----- Bundle trial ($2 setup fee + $49/mo bundle with 7-day trial) -----
-    case "bundle-trial": {
-      const bundlePlan = findBundlePlan("bundle");
-      if (!bundlePlan?.stripePriceIdMonthly) {
-        throw new HttpError(500, "Bundle price not configured");
-      }
-
-      const bundleLineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-        { price: bundlePlan.stripePriceIdMonthly, quantity: 1 },
-      ];
-      if (DUAL_TRIAL_SETUP_FEE_PRICE_ID) {
-        bundleLineItems.push({ price: DUAL_TRIAL_SETUP_FEE_PRICE_ID, quantity: 1 });
-      }
-
-      return stripe.checkout.sessions.create({
-        mode: "subscription",
-        allow_promotion_codes: true,
-        line_items: bundleLineItems,
-        subscription_data: {
-          trial_period_days: 7,
-          metadata: { type: "bundle", app_keys: bundlePlan.appKeys.join(",") },
-        },
-        metadata: { type: "bundle_trial", flow: "unauthenticated" },
-        success_url: TRIAL_SUCCESS_URL,
-        cancel_url: CANCEL_URL,
-      });
-    }
-
     // ----- Regular subscriptions ($29/mo) -----
     case "keywords":
     case "labs": {
@@ -281,26 +246,6 @@ async function createCheckoutSessionForPlan(plan: string): Promise<Stripe.Checko
     }
 
     default: {
-      // ----- Bundle subscription (config-driven, single price + promo codes) -----
-      const bundlePlan = findBundlePlan(plan);
-      if (bundlePlan) {
-        if (!bundlePlan.stripePriceIdMonthly) {
-          throw new HttpError(500, `No price configured for bundle "${bundlePlan.slug}"`);
-        }
-
-        return stripe.checkout.sessions.create({
-          mode: "subscription",
-          allow_promotion_codes: true,
-          line_items: [{ price: bundlePlan.stripePriceIdMonthly, quantity: 1 }],
-          subscription_data: {
-            metadata: { type: "bundle", app_keys: bundlePlan.appKeys.join(",") },
-          },
-          metadata: { type: "bundle", flow: "unauthenticated" },
-          success_url: SUCCESS_URL,
-          cancel_url: CANCEL_URL,
-        });
-      }
-
       throw new HttpError(400, `Unknown plan: ${plan}`);
     }
   }
@@ -341,7 +286,6 @@ async function handlePostCheckout(
     let billingPeriod: "monthly" | "yearly" = "monthly";
     let email: string | undefined;
     let trial = false;
-    let dualTrial = false;
 
     try {
       const body = JSON.parse(event.body);
@@ -350,13 +294,11 @@ async function handlePostCheckout(
       if (body.billingPeriod === "yearly") billingPeriod = "yearly";
       email = body.email?.trim()?.toLowerCase();
       if (body.trial === true) trial = true;
-      if (body.dualTrial === true) dualTrial = true;
     } catch {
       return withCors(jsonResponse(400, { error: "Invalid JSON body" }), cors);
     }
 
-    // Dual trial doesn't require appKey; everything else does
-    if (!dualTrial && (!appKey || !VALID_APP_KEYS.has(appKey))) {
+    if (!appKey || !VALID_APP_KEYS.has(appKey)) {
       return withCors(jsonResponse(400, { error: `Invalid appKey. Must be one of: ${[...VALID_APP_KEYS].join(", ")}` }), cors);
     }
 
@@ -374,33 +316,6 @@ async function handlePostCheckout(
 
     if (!customerId) {
       return withCors(jsonResponse(400, { error: "Email is required for checkout" }), cors);
-    }
-
-    // Dual/bundle trial flow
-    if (dualTrial) {
-      // Check eligibility if we have a known user
-      if (existingUserId) {
-        const eligibility = await checkDualTrialEligibility(existingUserId, customerId);
-        if (!eligibility.eligible) {
-          return withCors(
-            jsonResponse(409, { error: `Not eligible for trial: ${eligibility.reason}` }),
-            cors
-          );
-        }
-      }
-
-      const successUrl = `${DASHBOARD_URL}/?checkout=trial-success`;
-      const cancelUrl = `${DASHBOARD_URL}/?checkout=cancelled`;
-
-      const session = await createDualTrialCheckoutSession({
-        customerId,
-        userId: existingUserId,
-        successUrl,
-        cancelUrl,
-        flow: "unauthenticated",
-      });
-
-      return withCors(jsonResponse(200, { url: session.url }), cors);
     }
 
     // Single-app trial flow ($1 setup + 7-day trial)
