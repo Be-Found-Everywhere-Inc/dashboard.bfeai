@@ -35,6 +35,8 @@
     "@bfeai/ui": "file:./packages/ui",
     "@hookform/resolvers": "^5.2.2",
     "@netlify/functions": "^5.1.1",
+    "@stripe/react-stripe-js": "^6.3.0",
+    "@stripe/stripe-js": "^9.4.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.90.1",
     "@tailwindcss/postcss": "^4.1.18",
