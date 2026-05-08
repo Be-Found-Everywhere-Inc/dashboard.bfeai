@@ -350,12 +350,18 @@ export const allocateSubscriptionCredits = async (
 
 /**
  * Allocate top-up credits from a purchased pack. No cap.
+ *
+ * @param opts.autoTopup  - Set true when triggered by auto-topup (vs manual purchase).
+ *                          Written to credit_transactions.auto_topup column.
+ * @param opts.priceCents - Actual charge in cents. Written to
+ *                          credit_transactions.price_cents for spend reporting.
  */
 export const allocateTopUpCredits = async (
   userId: string,
   amount: number,
   packName: string,
-  referenceId?: string
+  referenceId?: string,
+  opts?: { autoTopup?: boolean; priceCents?: number }
 ): Promise<AllocateResult> => {
   await ensureUserCreditsRow(userId);
 
@@ -401,6 +407,8 @@ export const allocateTopUpCredits = async (
     description: `${packName} top-up`,
     app_key: null,
     reference_id: referenceId ?? null,
+    auto_topup: opts?.autoTopup ?? false,
+    price_cents: opts?.priceCents ?? null,
   });
 
   return { newBalance: newTotal, allocated: amount };
