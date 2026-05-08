@@ -5,12 +5,8 @@ import {
   createCheckoutSession,
   createTrialCheckoutSession,
   checkTrialEligibility,
-  createDualTrialCheckoutSession,
-  checkDualTrialEligibility,
-  createBundleCheckoutSession,
-  checkBundleEligibility,
 } from "./utils/stripe";
-import { findSubscriptionPlan, findBundlePlan, LITE_PLAN, PLUS_PLAN, MAX_PLAN, UNIVERSAL_APP_KEY } from "../../config/plans";
+import { findSubscriptionPlan, LITE_PLAN, PLUS_PLAN, MAX_PLAN, UNIVERSAL_APP_KEY } from "../../config/plans";
 import { getStripeEnv } from "../../lib/stripe-env";
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://dashboard.bfeai.com";
@@ -39,8 +35,6 @@ export const handler = withErrorHandling(async (event) => {
   let tier: string | undefined;
   let billingPeriod: "monthly" | "yearly" = "monthly";
   let trial = false;
-  let dualTrial = false;
-  let bundle = false;
   let unifiedTrial = false;
 
   if (event.body) {
@@ -50,8 +44,6 @@ export const handler = withErrorHandling(async (event) => {
       if (body.tier) tier = body.tier;
       if (body.billingPeriod === "yearly") billingPeriod = "yearly";
       if (body.trial === true) trial = true;
-      if (body.dualTrial === true) dualTrial = true;
-      if (body.bundle === true) bundle = true;
       if (body.unifiedTrial === true || body.flow === "unified_trial") unifiedTrial = true;
     } catch {
       // If body parsing fails, use defaults (backwards compatible)
@@ -59,44 +51,6 @@ export const handler = withErrorHandling(async (event) => {
   }
 
   const customerId = await getOrCreateStripeCustomer(user.id, email);
-
-  // Dual trial flow ($2 bundle: Keywords + LABS)
-  if (dualTrial) {
-    const eligibility = await checkDualTrialEligibility(user.id, customerId);
-    if (!eligibility.eligible) {
-      throw new HttpError(409, `Not eligible for trial: ${eligibility.reason}`);
-    }
-
-    const session = await createDualTrialCheckoutSession({
-      customerId,
-      userId: user.id,
-      successUrl: TRIAL_SUCCESS_URL,
-      cancelUrl: CANCEL_URL,
-    });
-
-    return jsonResponse(200, { url: session.url });
-  }
-
-  // Bundle checkout flow (config-driven, single price + promo codes)
-  if (bundle) {
-    const bundlePlan = findBundlePlan("bundle");
-    const eligibility = await checkBundleEligibility(
-      user.id,
-      bundlePlan?.appKeys ?? ["keywords", "labs"]
-    );
-    if (!eligibility.eligible) {
-      throw new HttpError(409, `Not eligible for bundle: ${eligibility.reason}`);
-    }
-
-    const session = await createBundleCheckoutSession(
-      customerId,
-      user.id,
-      SUCCESS_URL,
-      CANCEL_URL
-    );
-
-    return jsonResponse(200, { url: session.url });
-  }
 
   // Unified trial flow ($1 setup fee + 7-day trial on Lite, universal app access)
   if (unifiedTrial) {

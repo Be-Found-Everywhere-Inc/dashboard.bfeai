@@ -154,20 +154,6 @@ export const BillingService = {
       body: JSON.stringify({ appKey, trial: true }),
     }),
 
-  /** Create a Dual Trial Checkout Session ($2 bundle: Keywords + LABS). */
-  createDualTrialCheckout: () =>
-    authenticatedFetch<{ url: string }>("stripe-checkout", {
-      method: "POST",
-      body: JSON.stringify({ dualTrial: true }),
-    }),
-
-  /** Create a Bundle Checkout Session (Keywords + LABS, $49/mo). */
-  createBundleCheckout: () =>
-    authenticatedFetch<{ url: string }>("stripe-checkout", {
-      method: "POST",
-      body: JSON.stringify({ bundle: true }),
-    }),
-
   /** Create a Unified Trial Checkout Session ($1/7-day trial on Lite, universal access). */
   createUnifiedTrialCheckout: () =>
     authenticatedFetch<{ url: string }>("stripe-checkout", {
