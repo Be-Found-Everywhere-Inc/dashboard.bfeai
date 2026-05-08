@@ -315,3 +315,141 @@ You'll get this email at most once per 24 hours per app.`;
 
   return { subject, html, text };
 }
+
+// ---------------------------------------------------------------------------
+// Auto-topup emails (Wave 3)
+// ---------------------------------------------------------------------------
+
+interface AutoTopUpEmailData {
+  firstName?: string;
+  packName: string;
+  packPriceCents: number;
+  creditsUrl: string;
+}
+
+interface AutoTopUpRefundData {
+  chargeId: string;
+  userId: string;
+  creditsClawedBack: number;
+}
+
+/**
+ * Render the "auto top-up needs your card to be confirmed" email.
+ * Sent when an off-session PaymentIntent returns `requires_action` (e.g. 3DS).
+ * The user's auto_topup is disabled with reason='requires_authentication';
+ * they must re-confirm a card on /credits to re-enable. Throttled 24h.
+ */
+export function renderAutoTopUpRequiresAuthEmail(
+  params: AutoTopUpEmailData,
+): { subject: string; html: string; text: string } {
+  const greetingHtml = params.firstName
+    ? `Hi ${escapeHtml(params.firstName)},`
+    : "Hi there,";
+  const packNameHtml = escapeHtml(params.packName);
+  const creditsUrlHtml = escapeHtml(params.creditsUrl);
+  const priceUsd = (params.packPriceCents / 100).toFixed(2);
+
+  const safePackName = stripControl(params.packName);
+  const safeFirstName = params.firstName ? stripControl(params.firstName) : undefined;
+  const safeCreditsUrl = stripControl(params.creditsUrl);
+
+  const subject = `Your auto top-up needs you to confirm — re-enable on the credits page`;
+
+  const html = `<!doctype html>
+<html><body style="font-family:system-ui,-apple-system,sans-serif;color:#111;line-height:1.55;max-width:560px;margin:0 auto;padding:24px">
+  <p>${greetingHtml}</p>
+  <p>We tried to auto-charge $${priceUsd} for the <strong>${packNameHtml}</strong> pack, but your card needs an extra confirmation step (3D Secure).</p>
+  <p>Auto top-up is paused on your account. Open the credits page and re-confirm your card to turn it back on:</p>
+  <p><a href="${creditsUrlHtml}" style="display:inline-block;padding:10px 18px;background:#533577;color:#fff;border-radius:8px;text-decoration:none">Re-enable auto top-up</a></p>
+  <p style="font-size:12px;color:#666;margin-top:32px">You'll get this email at most once per 24 hours.</p>
+</body></html>`;
+
+  const plainGreeting = safeFirstName ? `Hi ${safeFirstName},` : "Hi there,";
+  const text = `${plainGreeting}
+
+We tried to auto-charge $${priceUsd} for the ${safePackName} pack, but your card needs an extra confirmation step (3D Secure).
+
+Auto top-up is paused. Re-enable it: ${safeCreditsUrl}
+
+You'll get this email at most once per 24 hours.`;
+
+  return { subject, html, text };
+}
+
+/**
+ * Render the "auto top-up declined" email. Sent when an off-session PaymentIntent
+ * returns `card_declined`. auto_topup disabled with reason='card_declined';
+ * user must update their card on /credits. Throttled 24h.
+ */
+export function renderAutoTopUpCardDeclinedEmail(
+  params: AutoTopUpEmailData,
+): { subject: string; html: string; text: string } {
+  const greetingHtml = params.firstName
+    ? `Hi ${escapeHtml(params.firstName)},`
+    : "Hi there,";
+  const packNameHtml = escapeHtml(params.packName);
+  const creditsUrlHtml = escapeHtml(params.creditsUrl);
+  const priceUsd = (params.packPriceCents / 100).toFixed(2);
+
+  const safePackName = stripControl(params.packName);
+  const safeFirstName = params.firstName ? stripControl(params.firstName) : undefined;
+  const safeCreditsUrl = stripControl(params.creditsUrl);
+
+  const subject = `Auto top-up failed — please update your card`;
+
+  const html = `<!doctype html>
+<html><body style="font-family:system-ui,-apple-system,sans-serif;color:#111;line-height:1.55;max-width:560px;margin:0 auto;padding:24px">
+  <p>${greetingHtml}</p>
+  <p>We tried to auto-charge $${priceUsd} for the <strong>${packNameHtml}</strong> pack, but your card was declined.</p>
+  <p>Auto top-up is disabled until you update your payment method. Open the credits page to fix:</p>
+  <p><a href="${creditsUrlHtml}" style="display:inline-block;padding:10px 18px;background:#533577;color:#fff;border-radius:8px;text-decoration:none">Update payment method</a></p>
+  <p style="font-size:12px;color:#666;margin-top:32px">You'll get this email at most once per 24 hours.</p>
+</body></html>`;
+
+  const plainGreeting = safeFirstName ? `Hi ${safeFirstName},` : "Hi there,";
+  const text = `${plainGreeting}
+
+We tried to auto-charge $${priceUsd} for the ${safePackName} pack, but your card was declined.
+
+Auto top-up is disabled. Update your payment method: ${safeCreditsUrl}
+
+You'll get this email at most once per 24 hours.`;
+
+  return { subject, html, text };
+}
+
+/**
+ * Render the "refund processed" admin notification. Sent when a charge.refunded
+ * webhook fires for a top-up purchase and the clawback succeeds. Admin-facing,
+ * not user-facing; routed to the admin email address.
+ */
+export function renderAutoTopUpRefundProcessedEmail(
+  params: AutoTopUpRefundData,
+): { subject: string; html: string; text: string } {
+  const safeChargeId = stripControl(params.chargeId);
+  const safeUserId = stripControl(params.userId);
+  const credits = String(params.creditsClawedBack);
+
+  const subject = `[BFEAI admin] Refund processed for charge ${safeChargeId}`;
+
+  const html = `<!doctype html>
+<html><body style="font-family:system-ui,-apple-system,sans-serif;color:#111;line-height:1.55;max-width:560px;margin:0 auto;padding:24px">
+  <p>A top-up purchase was refunded and the clawback completed.</p>
+  <ul>
+    <li>Charge: <code>${escapeHtml(params.chargeId)}</code></li>
+    <li>User: <code>${escapeHtml(params.userId)}</code></li>
+    <li>Credits clawed back: <strong>${credits}</strong></li>
+  </ul>
+  <p>topup_balance was decremented and a <code>refund_clawback</code> transaction was logged. If the user's balance went negative, they will not be blocked but should be reviewed.</p>
+</body></html>`;
+
+  const text = `A top-up purchase was refunded; clawback completed.
+
+Charge: ${safeChargeId}
+User: ${safeUserId}
+Credits clawed back: ${credits}
+
+topup_balance decremented; refund_clawback transaction logged. If the user's balance went negative, no block — manual review recommended.`;
+
+  return { subject, html, text };
+}
