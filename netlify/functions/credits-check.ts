@@ -4,7 +4,7 @@ import { checkCredits } from "./utils/credits";
 
 export const handler = withErrorHandling(async (event) => {
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
 
   const { user } = await requireAuth(event);
@@ -22,5 +22,5 @@ export const handler = withErrorHandling(async (event) => {
 
   const result = await checkCredits(user.id, body.appKey, body.operation);
 
-  return jsonResponse(200, result);
+  return jsonResponse(200, result, event);
 });

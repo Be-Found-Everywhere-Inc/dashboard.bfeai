@@ -35,6 +35,10 @@ export type CreditBalance = {
   cap: number;
   lifetimeEarned: number;
   lifetimeSpent: number;
+  /** Most recent skipped-scan timestamp (Wave 2 banner). */
+  lastSkippedScanAt: string | null;
+  /** When the user last dismissed the skipped-scan banner. */
+  lastSkippedScanDismissedAt: string | null;
 };
 
 export type CreditTransaction = {
@@ -205,4 +209,21 @@ export const BillingService = {
       method: "POST",
       body: JSON.stringify({ packKey }),
     }),
+
+  /**
+   * Dismiss the "scheduled scan was skipped" banner on /credits.
+   * Stamps `user_credits.last_skipped_scan_dismissed_at = now()` server-side.
+   */
+  dismissSkippedScanBanner: () =>
+    authenticatedFetch<{ ok: true }>("credits-skipped-scan-dismiss", {
+      method: "POST",
+    }),
 };
+
+/**
+ * Standalone export so hooks can import the function directly without
+ * pulling in the whole BillingService object (matches the spec's import
+ * `import { dismissSkippedScanBanner } from "@/services/BillingService"`).
+ */
+export const dismissSkippedScanBanner = () =>
+  BillingService.dismissSkippedScanBanner();

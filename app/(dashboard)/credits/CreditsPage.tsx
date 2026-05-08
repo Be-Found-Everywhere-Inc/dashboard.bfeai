@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@bfea
 import { useCredits } from "@/hooks/useCredits";
 import { CreditBalanceCard } from "@/components/billing/CreditBalanceCard";
 import { CreditHistoryTable } from "@/components/billing/CreditHistoryTable";
+import { SkippedScanBanner } from "@/components/billing/SkippedScanBanner";
 import { TopUpPacksGrid } from "@/components/billing/TopUpPacksGrid";
 
 const PAGE_SIZE = 20;
@@ -55,6 +56,17 @@ export function CreditsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Skipped-scan banner (Wave 2): show when the most recent skip is
+          newer than the last dismissal (or never dismissed). */}
+      {balance?.lastSkippedScanAt &&
+        (balance.lastSkippedScanDismissedAt === null ||
+          new Date(balance.lastSkippedScanAt) >
+            new Date(balance.lastSkippedScanDismissedAt)) && (
+          <div className="animate-fade-in-up" style={{ animationDelay: '250ms' }}>
+            <SkippedScanBanner skippedAt={balance.lastSkippedScanAt} />
+          </div>
+        )}
 
       {/* Top-up packs */}
       <div className="animate-fade-in-up" style={{ animationDelay: '300ms' }}>

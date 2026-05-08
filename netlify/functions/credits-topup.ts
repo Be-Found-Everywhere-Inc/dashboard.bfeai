@@ -9,7 +9,7 @@ const CANCEL_URL = `${DASHBOARD_URL}/credits?topup=cancelled`;
 
 export const handler = withErrorHandling(async (event) => {
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
 
   const { user } = await requireAuth(event);
@@ -49,5 +49,5 @@ export const handler = withErrorHandling(async (event) => {
     CANCEL_URL
   );
 
-  return jsonResponse(200, { url: session.url });
+  return jsonResponse(200, { url: session.url }, event);
 });
