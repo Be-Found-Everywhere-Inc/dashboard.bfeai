@@ -5,7 +5,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // ---------------------------------------------------------------------------
 
 const mockRequireAuth = vi.fn();
-const mockIsAutoTopUpBetaUser = vi.fn();
 
 // Track the exact payload passed to update() so we can assert on it.
 const mockUpdateFn = vi.fn();
@@ -32,10 +31,6 @@ const mockSupabaseAdmin = {
 vi.mock("../../../netlify/functions/utils/supabase-admin", () => ({
   requireAuth: mockRequireAuth,
   supabaseAdmin: mockSupabaseAdmin,
-}));
-
-vi.mock("../../../lib/feature-flags", () => ({
-  isAutoTopUpBetaUser: mockIsAutoTopUpBetaUser,
 }));
 
 // stripe is used to mirror the saved PM as customer default — mock the module
@@ -77,12 +72,11 @@ describe("settings-billing-update handler", () => {
     // Refresh mock implementation after clearAllMocks
     mockSupabaseAdmin.from.mockImplementation(makeSupabaseFromImpl);
 
-    // Default: authenticated beta user
+    // Default: authenticated user (gate removed in Wave 3.2)
     mockRequireAuth.mockResolvedValue({
       user: { id: "user-1", email: "user@example.com" },
       accessToken: "tok",
     });
-    mockIsAutoTopUpBetaUser.mockReturnValue(true);
   });
 
   // -------------------------------------------------------------------------
@@ -197,28 +191,9 @@ describe("settings-billing-update handler", () => {
   });
 
   // -------------------------------------------------------------------------
-  // Case 6: Non-beta user
+  // Case 6: Method other than PATCH
   // -------------------------------------------------------------------------
-  it("6. returns 403 for non-beta user and does not write to DB", async () => {
-    mockIsAutoTopUpBetaUser.mockReturnValue(false);
-
-    const { handler } = await import(
-      "../../../netlify/functions/settings-billing-update"
-    );
-    const res = await handler!(
-      makePatchEvent({ auto_topup_enabled: true }),
-      {} as any,
-      () => undefined
-    );
-
-    expect((res as { statusCode: number }).statusCode).toBe(403);
-    expect(mockUpdateFn).not.toHaveBeenCalled();
-  });
-
-  // -------------------------------------------------------------------------
-  // Case 7: Method other than PATCH
-  // -------------------------------------------------------------------------
-  it("7. returns 405 for GET method", async () => {
+  it("6. returns 405 for GET method", async () => {
     const { handler } = await import(
       "../../../netlify/functions/settings-billing-update"
     );
