@@ -10,7 +10,6 @@ import {
   renderAutoTopUpRequiresAuthEmail,
   renderAutoTopUpCardDeclinedEmail,
 } from "./utils/email-templates";
-import { isAutoTopUpBetaUser } from "../../lib/feature-flags";
 
 const DASH_URL =
   process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://dashboard.bfeai.com";
@@ -66,14 +65,6 @@ export const handler: Handler = withErrorHandling(async (event) => {
     const { user } = await requireAuth(event);
     userId = user.id;
     userEmail = user.email ?? "";
-  }
-
-  if (!isAutoTopUpBetaUser(userId)) {
-    return jsonResponse(
-      403,
-      { error: "Auto-topup not available for this account" },
-      event
-    );
   }
 
   const body = JSON.parse(event.body ?? "{}") as { pack_key?: TopUpPackKey };

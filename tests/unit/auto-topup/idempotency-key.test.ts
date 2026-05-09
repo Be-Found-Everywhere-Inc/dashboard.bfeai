@@ -30,10 +30,6 @@ vi.mock("../../../netlify/functions/utils/email-templates", () => ({
   renderAutoTopUpCardDeclinedEmail: vi.fn(),
 }));
 
-vi.mock("../../../lib/feature-flags", () => ({
-  isAutoTopUpBetaUser: vi.fn(),
-}));
-
 import { buildIdempotencyKey } from "../../../netlify/functions/auto-topup-charge";
 
 describe("buildIdempotencyKey", () => {

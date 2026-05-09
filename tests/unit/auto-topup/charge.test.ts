@@ -79,7 +79,6 @@ const mockSendEmail = vi.fn();
 const mockShouldSendEmail = vi.fn();
 const mockRenderRequiresAuth = vi.fn();
 const mockRenderCardDeclined = vi.fn();
-const mockIsAutoTopUpBetaUser = vi.fn();
 
 vi.mock("../../../netlify/functions/utils/stripe", () => ({
   stripe: mockStripe,
@@ -105,10 +104,6 @@ vi.mock("../../../netlify/functions/utils/email-throttle", () => ({
 vi.mock("../../../netlify/functions/utils/email-templates", () => ({
   renderAutoTopUpRequiresAuthEmail: mockRenderRequiresAuth,
   renderAutoTopUpCardDeclinedEmail: mockRenderCardDeclined,
-}));
-
-vi.mock("../../../lib/feature-flags", () => ({
-  isAutoTopUpBetaUser: mockIsAutoTopUpBetaUser,
 }));
 
 // ---------------------------------------------------------------------------
@@ -137,7 +132,7 @@ const DEFAULT_CREDITS_ROW = DEFAULT_CREDITS_ROW_INIT();
 
 const DEFAULT_PROFILE = {
   stripe_customer_id: "cus_test_123",
-  first_name: "Alice",
+  full_name: "Alice Example",
 };
 
 // power pack: 980 credits, $99 (9900 cents)
@@ -171,12 +166,11 @@ describe("auto-topup-charge handler", () => {
       Promise.resolve({ data: [{ mtd_cents: _mtdCents }], error: null })
     );
 
-    // Default: authenticated beta user
+    // Default: authenticated user (gate removed in Wave 3.2)
     mockRequireAuth.mockResolvedValue({
       user: { id: "user-1", email: "user@example.com" },
       accessToken: "tok",
     });
-    mockIsAutoTopUpBetaUser.mockReturnValue(true);
     mockAllocateTopUpCredits.mockResolvedValue({
       newBalance: 1000,
       allocated: 980,
@@ -419,23 +413,4 @@ describe("auto-topup-charge handler", () => {
     expect(mockPaymentIntentsCreate).not.toHaveBeenCalled();
   });
 
-  // -------------------------------------------------------------------------
-  // Case 9: Non-beta user → 403
-  // -------------------------------------------------------------------------
-  it("9. returns 403 for non-beta user", async () => {
-    mockIsAutoTopUpBetaUser.mockReturnValue(false);
-
-    const { handler } = await import(
-      "../../../netlify/functions/auto-topup-charge"
-    );
-    const res = await handler!(makeEvent(), {} as any, () => undefined);
-    const body = JSON.parse((res as { body: string }).body);
-
-    expect((res as { statusCode: number }).statusCode).toBe(403);
-    expect(body.error).toMatch(/not available/i);
-
-    // No Stripe call, no credits allocation
-    expect(mockPaymentIntentsCreate).not.toHaveBeenCalled();
-    expect(mockAllocateTopUpCredits).not.toHaveBeenCalled();
-  });
 });

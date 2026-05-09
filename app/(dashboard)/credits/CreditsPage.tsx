@@ -16,12 +16,7 @@ const PAGE_SIZE = 20;
 // Stripe publishable key — resolved at build/runtime from env
 const STRIPE_PK = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 
-type CreditsPageProps = {
-  /** Server-side beta gate: hide auto-topup UI for non-beta users. */
-  isBetaUser?: boolean;
-};
-
-export function CreditsPage({ isBetaUser = false }: CreditsPageProps) {
+export function CreditsPage() {
   const [page, setPage] = useState(0);
 
   const {
@@ -96,15 +91,11 @@ export function CreditsPage({ isBetaUser = false }: CreditsPageProps) {
 
   const autoTopup = balance?.autoTopup ?? null;
   const showDisabledBox =
-    isBetaUser &&
     autoTopup !== null &&
     autoTopup.disabledReason !== null &&
     autoTopup.disabledReason !== "user_disabled";
 
-  const showMainSection =
-    isBetaUser &&
-    autoTopup !== null &&
-    !showDisabledBox;
+  const showMainSection = autoTopup !== null && !showDisabledBox;
 
   return (
     <div className="space-y-8">

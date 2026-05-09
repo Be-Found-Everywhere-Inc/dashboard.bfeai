@@ -3,7 +3,6 @@ import { withErrorHandling, jsonResponse } from "./utils/http";
 import { requireAuth, supabaseAdmin } from "./utils/supabase-admin";
 import { stripe } from "./utils/stripe";
 import { TOPUP_PACKS } from "../../config/plans";
-import { isAutoTopUpBetaUser } from "../../lib/feature-flags";
 
 /** Smallest pack price in cents — cap must be >= this to make sense */
 const MIN_CAP_CENTS = Math.min(
@@ -23,14 +22,6 @@ export const handler: Handler = withErrorHandling(async (event) => {
   }
 
   const { user } = await requireAuth(event);
-
-  if (!isAutoTopUpBetaUser(user.id)) {
-    return jsonResponse(
-      403,
-      { error: "Auto-topup not available for this account" },
-      event
-    );
-  }
 
   const body = JSON.parse(event.body ?? "{}") as BillingUpdateBody;
 
