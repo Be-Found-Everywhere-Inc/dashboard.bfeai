@@ -57,15 +57,20 @@ const resolveCandidatePmId = async (
  * Try to resolve the customer's existing payment method (default OR saved auto-topup PM).
  * Returns { last4, brand } for a valid, non-expired card; null otherwise.
  * Never throws — all Stripe errors fall through to null.
+ *
+ * If retrieval fails with a definitive 404 / resource_missing AND the dead pointer
+ * matches user_credits.auto_topup_payment_method_id, clear the DB row so future
+ * toggles don't keep resolving a PM that no longer exists in Stripe. Transient
+ * errors (network, auth, rate limit) leave the DB pointer untouched.
  */
 const resolveExistingPm = async (
   customerId: string,
   userId: string
 ): Promise<ExistingPm | null> => {
-  try {
-    const pmId = await resolveCandidatePmId(customerId, userId);
-    if (!pmId) return null;
+  const pmId = await resolveCandidatePmId(customerId, userId).catch(() => null);
+  if (!pmId) return null;
 
+  try {
     const pm = await stripe.paymentMethods.retrieve(pmId);
 
     const card = (pm as { card?: { brand: string; last4: string; exp_year: number; exp_month: number } }).card;
@@ -74,8 +79,21 @@ const resolveExistingPm = async (
     if (!isCardActive(card.exp_year, card.exp_month)) return null;
 
     return { last4: card.last4, brand: card.brand };
-  } catch {
-    // 404 (detached PM), deleted PM, network error — all treated as "no PM"
+  } catch (err) {
+    const errStatus = (err as { statusCode?: number } | null)?.statusCode;
+    const errCode = (err as { code?: string } | null)?.code;
+    const isMissing = errStatus === 404 || errCode === "resource_missing";
+
+    if (isMissing) {
+      // Conditional UPDATE — only clears the DB pointer if it still equals the
+      // dead PM ID. If the customer's invoice_settings.default_payment_method
+      // was the source (and DB has a different ID), the eq() filter no-ops.
+      await supabaseAdmin
+        .from("user_credits")
+        .update({ auto_topup_payment_method_id: null })
+        .eq("user_id", userId)
+        .eq("auto_topup_payment_method_id", pmId);
+    }
     return null;
   }
 };
