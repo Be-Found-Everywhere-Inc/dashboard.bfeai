@@ -31,8 +31,44 @@ export const handler: Handler = withErrorHandling(async (event) => {
     return jsonResponse(405, { error: "Method not allowed" }, event);
   }
 
-  const { user } = await requireAuth(event);
-  if (!isAutoTopUpBetaUser(user.id)) {
+  // Wave 3.1: dual auth path. Browser callers use the bfeai_session cookie
+  // (requireAuth). Cross-app server callers (consumer-app proxies that
+  // intercept 402s and trigger silent auto-topup) use Authorization: Bearer
+  // INTERNAL_API_TOKEN + an X-User-Id header naming the user being charged.
+  const authHeader =
+    event.headers["authorization"] ?? event.headers["Authorization"] ?? "";
+  const internalToken = process.env.INTERNAL_API_TOKEN;
+  const isInternalCall =
+    typeof internalToken === "string" &&
+    internalToken.length > 0 &&
+    authHeader === `Bearer ${internalToken}`;
+
+  let userId: string;
+  let userEmail = "";
+  if (isInternalCall) {
+    const headerUserId =
+      event.headers["x-user-id"] ?? event.headers["X-User-Id"] ?? "";
+    if (!headerUserId || typeof headerUserId !== "string") {
+      return jsonResponse(
+        400,
+        { error: "X-User-Id header required for internal calls" },
+        event
+      );
+    }
+    userId = headerUserId;
+    const { data: lookupProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("email")
+      .eq("id", userId)
+      .maybeSingle();
+    userEmail = lookupProfile?.email ?? "";
+  } else {
+    const { user } = await requireAuth(event);
+    userId = user.id;
+    userEmail = user.email ?? "";
+  }
+
+  if (!isAutoTopUpBetaUser(userId)) {
     return jsonResponse(
       403,
       { error: "Auto-topup not available for this account" },
@@ -41,19 +77,16 @@ export const handler: Handler = withErrorHandling(async (event) => {
   }
 
   const body = JSON.parse(event.body ?? "{}") as { pack_key?: TopUpPackKey };
-  const packKey = body.pack_key;
-  if (!packKey || !(packKey in TOPUP_PACKS)) {
-    return jsonResponse(400, { error: "Invalid pack_key" }, event);
-  }
-  const pack = TOPUP_PACKS[packKey];
+  let packKey = body.pack_key;
 
-  // Load user_credits row
+  // Load user_credits row (auto_topup_pack_key included so we can fall back
+  // to the saved pack when callers omit pack_key — Wave 3.1 proxies do).
   const { data: creditsRow, error: creditsErr } = await supabaseAdmin
     .from("user_credits")
     .select(
-      "auto_topup_enabled, auto_topup_disabled_reason, auto_topup_payment_method_id, auto_topup_monthly_cap_cents"
+      "auto_topup_enabled, auto_topup_disabled_reason, auto_topup_payment_method_id, auto_topup_monthly_cap_cents, auto_topup_pack_key"
     )
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .single();
 
   if (creditsErr || !creditsRow) {
@@ -78,6 +111,18 @@ export const handler: Handler = withErrorHandling(async (event) => {
     }, event);
   }
 
+  // Resolve pack: explicit body.pack_key wins, else fall back to the
+  // user's saved auto_topup_pack_key from settings.
+  if (!packKey) {
+    packKey = (creditsRow.auto_topup_pack_key ?? undefined) as
+      | TopUpPackKey
+      | undefined;
+  }
+  if (!packKey || !(packKey in TOPUP_PACKS)) {
+    return jsonResponse(400, { error: "Invalid or missing pack_key" }, event);
+  }
+  const pack = TOPUP_PACKS[packKey];
+
   if (pack.priceCents > creditsRow.auto_topup_monthly_cap_cents) {
     return jsonResponse(409, {
       error: "Pack exceeds monthly cap",
@@ -86,7 +131,7 @@ export const handler: Handler = withErrorHandling(async (event) => {
   }
 
   const { data: mtdRows } = await supabaseAdmin.rpc("mtd_auto_topup_cents", {
-    p_user_id: user.id,
+    p_user_id: userId,
   });
   const mtdCents =
     (mtdRows as { mtd_cents: number }[] | null)?.[0]?.mtd_cents ?? 0;
@@ -102,7 +147,7 @@ export const handler: Handler = withErrorHandling(async (event) => {
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("stripe_customer_id, first_name")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single();
 
   const customerId = profile?.stripe_customer_id;
@@ -114,7 +159,7 @@ export const handler: Handler = withErrorHandling(async (event) => {
   }
 
   // Off-session PaymentIntent with idempotency
-  const idempotencyKey = buildIdempotencyKey(user.id, packKey, new Date());
+  const idempotencyKey = buildIdempotencyKey(userId, packKey, new Date());
 
   try {
     const pi = await stripe.paymentIntents.create(
@@ -128,14 +173,14 @@ export const handler: Handler = withErrorHandling(async (event) => {
         metadata: {
           pack_key: packKey,
           type: "auto_topup",
-          user_id: user.id,
+          user_id: userId,
         },
       },
       { idempotencyKey }
     );
 
     if (pi.status === "succeeded") {
-      await allocateTopUpCredits(user.id, pack.credits, pack.name, pi.id, {
+      await allocateTopUpCredits(userId, pack.credits, pack.name, pi.id, {
         autoTopup: true,
         priceCents: pack.priceCents,
       });
@@ -151,9 +196,9 @@ export const handler: Handler = withErrorHandling(async (event) => {
     }
 
     if (pi.status === "requires_action") {
-      await disableAutoTopUp(user.id, "requires_authentication");
+      await disableAutoTopUp(userId, "requires_authentication");
       await maybeSendEmail(
-        { id: user.id, email: user.email ?? "" },
+        { id: userId, email: userEmail },
         profile?.first_name ?? undefined,
         "auto_topup_requires_authentication",
         pack
@@ -175,9 +220,9 @@ export const handler: Handler = withErrorHandling(async (event) => {
     };
 
     if (stripeErr?.code === "card_declined" || stripeErr?.decline_code) {
-      await disableAutoTopUp(user.id, "card_declined");
+      await disableAutoTopUp(userId, "card_declined");
       await maybeSendEmail(
-        { id: user.id, email: user.email ?? "" },
+        { id: userId, email: userEmail },
         profile?.first_name ?? undefined,
         "auto_topup_card_declined",
         pack
