@@ -84,7 +84,7 @@ describe('getBalance – autoTopup field', () => {
     });
 
     // RPC returns 4999 cents MTD
-    vi.mocked(supabaseAdmin.rpc).mockResolvedValue({ data: 4999, error: null } as never);
+    vi.mocked(supabaseAdmin.rpc).mockResolvedValue({ data: [{ mtd_cents: 4999 }], error: null } as never);
 
     // Stripe returns card with last4
     vi.mocked(stripe.paymentMethods.retrieve).mockResolvedValue({
@@ -130,7 +130,7 @@ describe('getBalance – autoTopup field', () => {
       auto_topup_disabled_reason: 'payment_failed',
     });
 
-    vi.mocked(supabaseAdmin.rpc).mockResolvedValue({ data: 0, error: null } as never);
+    vi.mocked(supabaseAdmin.rpc).mockResolvedValue({ data: [{ mtd_cents: 0 }], error: null } as never);
 
     // Simulate a detached/deleted PM → Stripe throws
     vi.mocked(stripe.paymentMethods.retrieve).mockRejectedValue(
@@ -155,7 +155,7 @@ describe('getBalance – autoTopup field', () => {
     // Simulate no row in DB
     fromImpl = makeFromImpl(null);
 
-    vi.mocked(supabaseAdmin.rpc).mockResolvedValue({ data: 0, error: null } as never);
+    vi.mocked(supabaseAdmin.rpc).mockResolvedValue({ data: [{ mtd_cents: 0 }], error: null } as never);
     vi.mocked(stripe.paymentMethods.retrieve).mockResolvedValue({} as never);
 
     const { getBalance } = await import('../../../netlify/functions/utils/credits');

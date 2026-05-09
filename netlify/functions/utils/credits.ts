@@ -162,7 +162,9 @@ export const getBalance = async (userId: string): Promise<CreditBalance> => {
     pmId ? resolvePaymentMethodLast4(pmId) : Promise.resolve(null),
   ]);
 
-  const mtdSpentCents: number = (mtdResult.data as number | null) ?? 0;
+  // RPC mtd_auto_topup_cents returns SETOF (mtd_cents integer), so data is an array of rows.
+  const mtdSpentCents: number =
+    (mtdResult.data as { mtd_cents: number }[] | null)?.[0]?.mtd_cents ?? 0;
   const lastChargeAt: string | null =
     lastChargeResult.data && lastChargeResult.data.length > 0
       ? (lastChargeResult.data[0].created_at as string)
