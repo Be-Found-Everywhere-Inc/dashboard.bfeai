@@ -56,10 +56,17 @@ export const useCredits = (historyLimit = 50, historyOffset = 0) => {
     totalTransactions: historyQuery.data?.total ?? 0,
     historyLoading: historyQuery.isLoading,
 
-    // Top-up purchase
+    /**
+     * Purchase a top-up pack. Returns the full TopUpPurchaseResult so the
+     * caller can decide between redirecting to Checkout (`url`) or surfacing
+     * the off-session success (`ok: true`) — see services/BillingService.ts
+     * `TopUpPurchaseResult`.
+     */
     purchaseTopUp: async (packKey: string) => {
-      const { url } = await topUpMutation.mutateAsync(packKey);
-      return url;
+      const result = await topUpMutation.mutateAsync(packKey);
+      // Off-session success — refresh balance immediately so callers see new total
+      if ("ok" in result && result.ok) invalidate();
+      return result;
     },
     topUpLoading: topUpMutation.isPending,
 

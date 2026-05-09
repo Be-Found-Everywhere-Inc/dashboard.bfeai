@@ -12,6 +12,8 @@ import {
   hasOffpageBetaAccess,
   CreditsProvider,
   OutOfCreditsModal,
+  useCredits as useOutOfCreditsContext,
+  toast,
   type AutoTopUpState,
 } from '@bfeai/ui';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -46,7 +48,7 @@ function DashboardContent({
 }) {
   const pathname = usePathname();
   const credits = useCredits();
-  const { balance } = useCreditsData();
+  const { balance, invalidate } = useCreditsData();
 
   // Map balance.autoTopup → AutoTopUpState for CreditsProvider
   const autoTopup: AutoTopUpState | null = balance?.autoTopup ?? null;
@@ -142,27 +144,72 @@ function DashboardContent({
       </SidebarInset>
 
       {/* Out-of-credits modal \u2014 mounted once at shell level */}
-      <OutOfCreditsModal
-        manageCreditsUrl="/credits"
-        onPurchase={async (pack) => {
-          const res = await fetch('/.netlify/functions/credits-topup', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ packKey: pack.key }),
-          });
-          if (!res.ok) {
-            const body = await res.json().catch(() => ({})) as { error?: string };
-            throw new Error(body.error ?? 'Could not start checkout');
-          }
-          const { url } = await res.json() as { url: string };
-          window.location.href = url;
-        }}
-        stripePublishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ''}
+      <OutOfCreditsModalMount
+        invalidateCredits={invalidate}
         onRequestSetupIntent={handleRequestSetupIntent}
         onConfirmAutoTopUp={handleConfirmAutoTopUp}
       />
     </CreditsProvider>
+  );
+}
+
+/**
+ * Modal mount inside CreditsProvider so we can call closeOutOfCreditsModal()
+ * after a successful off-session quick-charge. Lives here (not in the parent)
+ * because useOutOfCreditsContext() requires being inside <CreditsProvider>.
+ */
+function OutOfCreditsModalMount({
+  invalidateCredits,
+  onRequestSetupIntent,
+  onConfirmAutoTopUp,
+}: {
+  invalidateCredits: () => void;
+  onRequestSetupIntent: () => Promise<{ client_secret: string; existing_pm: { last4: string; brand: string } | null }>;
+  onConfirmAutoTopUp: (params: {
+    autoTopUpEnabled: true;
+    autoTopUpPackKey: string;
+    autoTopUpMonthlyCapCents: number;
+    autoTopUpPaymentMethodId: string;
+  }) => Promise<void>;
+}) {
+  const { closeOutOfCreditsModal } = useOutOfCreditsContext();
+
+  return (
+    <OutOfCreditsModal
+      manageCreditsUrl="/credits"
+      onPurchase={async (pack) => {
+        const res = await fetch('/.netlify/functions/credits-topup', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ packKey: pack.key }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({})) as { error?: string };
+          throw new Error(body.error ?? 'Could not start checkout');
+        }
+        const data = await res.json() as
+          | { url: string }
+          | { ok: true; creditsAdded: number; balance: number; packName: string };
+
+        if ('url' in data) {
+          // No saved PM (or quick-charge fell back) \u2014 redirect to Stripe Checkout
+          window.location.href = data.url;
+          return;
+        }
+
+        // Off-session success \u2014 credits already allocated, refresh + close + toast
+        invalidateCredits();
+        toast({
+          title: `Added ${data.creditsAdded.toLocaleString()} credits`,
+          description: `${data.packName} purchased on your saved card. New balance: ${data.balance.toLocaleString()}.`,
+        });
+        closeOutOfCreditsModal();
+      }}
+      stripePublishableKey={process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ''}
+      onRequestSetupIntent={onRequestSetupIntent}
+      onConfirmAutoTopUp={onConfirmAutoTopUp}
+    />
   );
 }
 
