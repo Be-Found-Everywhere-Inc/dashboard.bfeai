@@ -143,12 +143,16 @@ export const handler: Handler = withErrorHandling(async (event) => {
     }, event);
   }
 
-  // Resolve Stripe customer
+  // Resolve Stripe customer (full_name used for the auto-topup email greeting;
+  // profiles has no first_name column — referencing it errors the entire
+  // SELECT, which is why this used to spuriously return no_customer for
+  // every caller until the column name was fixed).
   const { data: profile } = await supabaseAdmin
     .from("profiles")
-    .select("stripe_customer_id, first_name")
+    .select("stripe_customer_id, full_name")
     .eq("id", userId)
     .single();
+  const firstName = profile?.full_name?.split(" ")[0];
 
   const customerId = profile?.stripe_customer_id;
   if (!customerId) {
@@ -199,7 +203,7 @@ export const handler: Handler = withErrorHandling(async (event) => {
       await disableAutoTopUp(userId, "requires_authentication");
       await maybeSendEmail(
         { id: userId, email: userEmail },
-        profile?.first_name ?? undefined,
+        firstName,
         "auto_topup_requires_authentication",
         pack
       );
@@ -223,7 +227,7 @@ export const handler: Handler = withErrorHandling(async (event) => {
       await disableAutoTopUp(userId, "card_declined");
       await maybeSendEmail(
         { id: userId, email: userEmail },
-        profile?.first_name ?? undefined,
+        firstName,
         "auto_topup_card_declined",
         pack
       );
