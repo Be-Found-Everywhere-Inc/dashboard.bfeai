@@ -28,10 +28,6 @@ export function AppsPage() {
   const {
     subscriptions,
     getSubscription,
-    createCheckout,
-    checkoutLoading,
-    createTrialCheckout,
-    trialCheckoutLoading,
     createUnifiedTrialCheckout,
     unifiedTrialCheckoutLoading,
     createTierCheckout,
@@ -54,15 +50,14 @@ export function AppsPage() {
       .catch(() => {});
   }, []);
 
-  // Auto-trigger trial checkout when ?trial=true&app=X is in URL
+  // Auto-trigger unified trial checkout when ?trial=true is in URL
+  // (Wave 1: legacy ?trial=true&app=X deep-links now route to the unified $1 trial on Lite.)
   useEffect(() => {
     const trialParam = searchParams.get("trial");
-    const appParam = searchParams.get("app");
-
-    if (trialParam === "true" && appParam && !trialRedirecting && !trialAttempted) {
+    if (trialParam === "true" && !trialRedirecting && !trialAttempted) {
       setTrialRedirecting(true);
       setTrialAttempted(true);
-      createTrialCheckout(appParam)
+      createUnifiedTrialCheckout()
         .then((url) => {
           window.location.href = url;
         })
@@ -75,7 +70,7 @@ export function AppsPage() {
           });
         });
     }
-  }, [searchParams, createTrialCheckout, trialRedirecting, trialAttempted]);
+  }, [searchParams, createUnifiedTrialCheckout, trialRedirecting, trialAttempted]);
 
   const getAppStatus = (app: AppConfig): 'subscribed' | 'trialing' | 'available' => {
     const sub = getSubscription(app.key);
@@ -90,30 +85,9 @@ export function AppsPage() {
     window.open(app.url, '_blank');
   };
 
-  const handleSubscribe = async (appKey: string) => {
-    try {
-      const url = await createCheckout(appKey);
-      window.location.href = url;
-    } catch (error) {
-      toast({
-        title: "Unable to start checkout",
-        description: error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleStartTrial = async (appKey: string) => {
-    try {
-      const url = await createTrialCheckout(appKey);
-      window.location.href = url;
-    } catch (error) {
-      toast({
-        title: "Unable to start trial",
-        description: error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleViewPlans = () => {
+    // Scroll the unified-tier section (Lite/Plus/Max) into view.
+    document.getElementById('unified-tier-plans')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleUnifiedTrial = async () => {
@@ -142,12 +116,10 @@ export function AppsPage() {
     }
   };
 
-  // Detect grandfathered legacy subscribers (per-app subs from before unified plans)
-  const hasLegacySub = subscriptions.some(
-    (s) => s.appKey !== 'any' && (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due')
-  );
-  const hasNewTierSub = subscriptions.some(
-    (s) => s.appKey === 'any' && (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due')
+  // Any active sub (legacy per-app or new-tier) means the user can launch every app.
+  // Wave 1: access is auth-only; per-app subs no longer act as gates.
+  const hasAnySub = subscriptions.some(
+    (s) => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due'
   );
 
   const visibleApps = getActiveApps({ user_tier: userTier });
@@ -182,7 +154,7 @@ export function AppsPage() {
               Explore BFEAI Apps
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Powerful tools to grow your business. Subscribe individually, pay with credits.
+              Powerful tools to grow your business. One subscription unlocks every app.
             </p>
           </div>
           {subscriptions.length > 0 && (
@@ -198,7 +170,7 @@ export function AppsPage() {
       </div>
 
       {/* Unified Tier Plans (Wave 1) */}
-      <div className="animate-fade-in-up space-y-6" style={{ animationDelay: '50ms' }}>
+      <div id="unified-tier-plans" className="animate-fade-in-up space-y-6 scroll-mt-20" style={{ animationDelay: '50ms' }}>
         <div className="text-center">
           <h2 className="font-heading text-2xl text-foreground">All plans now include every BFEAI app</h2>
           <p className="text-sm text-muted-foreground mt-2">
@@ -289,8 +261,8 @@ export function AppsPage() {
           </Card>
         </div>
 
-        {/* Unified trial CTA */}
-        {!hasNewTierSub && !hasLegacySub && (
+        {/* Unified trial CTA — only show to users with no active sub */}
+        {!hasAnySub && (
           <div className="text-center">
             <Button
               variant="outline"
@@ -390,7 +362,7 @@ export function AppsPage() {
                   )}
 
                   <div className="flex gap-2 pt-2">
-                    {status === 'subscribed' || status === 'trialing' || hasNewTierSub ? (
+                    {hasAnySub ? (
                       <>
                         <Button
                           className="flex-1 gap-2 btn-press"
@@ -407,40 +379,23 @@ export function AppsPage() {
                           Details
                         </Button>
                       </>
-                    ) : hasLegacySub ? (
+                    ) : (
                       <>
                         <Button
                           className="flex-1 gap-2 btn-press"
-                          disabled={checkoutLoading}
-                          onClick={() => void handleSubscribe(app.key)}
+                          onClick={handleViewPlans}
                         >
-                          {checkoutLoading ? "Redirecting..." : "Subscribe"}
-                          {!checkoutLoading && <ArrowUpRight className="h-4 w-4" />}
+                          View plans
+                          <ArrowUpRight className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="outline"
-                          className="gap-1.5 border-brand-indigo/40 text-brand-indigo hover:bg-brand-indigo/5 hover:text-brand-indigo btn-press"
-                          disabled={trialCheckoutLoading}
-                          onClick={() => void handleStartTrial(app.key)}
-                        >
-                          {trialCheckoutLoading ? "Redirecting..." : "Try for $1 — 7 days"}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="text-muted-foreground hover:text-foreground btn-press"
+                          className="btn-press"
                           onClick={() => setSelectedApp(app.key)}
                         >
                           Learn More
                         </Button>
                       </>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        className="flex-1 btn-press"
-                        onClick={() => setSelectedApp(app.key)}
-                      >
-                        Learn More
-                      </Button>
                     )}
                   </div>
                 </CardContent>
@@ -456,12 +411,13 @@ export function AppsPage() {
           appKey={selectedApp}
           open={Boolean(selectedApp)}
           onOpenChange={(open) => !open && setSelectedApp(null)}
-          onSubscribe={() => void handleSubscribe(selectedApp)}
-          onStartTrial={() => void handleStartTrial(selectedApp)}
-          subscribeLoading={checkoutLoading}
-          trialLoading={trialCheckoutLoading}
+          onViewPlans={() => {
+            setSelectedApp(null);
+            handleViewPlans();
+          }}
           currentStatus={getAppStatus(APP_CATALOG[selectedApp])}
           appUrl={APP_CATALOG[selectedApp].url}
+          hasAnySub={hasAnySub}
         />
       )}
     </div>

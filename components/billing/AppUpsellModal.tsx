@@ -310,24 +310,22 @@ type AppUpsellModalProps = {
   appKey: AppKey;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubscribe: () => void;
-  onStartTrial: () => void;
-  subscribeLoading?: boolean;
-  trialLoading?: boolean;
+  /** Wave 1: replaces per-app subscribe + trial. Closes the modal and scrolls to Lite/Plus/Max. */
+  onViewPlans: () => void;
   currentStatus: 'subscribed' | 'trialing' | 'available';
   appUrl: string;
+  /** Wave 1: any active sub (legacy or new-tier) grants universal access. */
+  hasAnySub: boolean;
 };
 
 export function AppUpsellModal({
   appKey,
   open,
   onOpenChange,
-  onSubscribe,
-  onStartTrial,
-  subscribeLoading,
-  trialLoading,
+  onViewPlans,
   currentStatus,
   appUrl,
+  hasAnySub,
 }: AppUpsellModalProps) {
   const app = APP_CATALOG[appKey];
   const upsell = UPSELL_DATA[appKey];
@@ -355,7 +353,8 @@ export function AppUpsellModal({
     };
   }, [api, onSelect]);
 
-  const isSubscribed = currentStatus === 'subscribed' || currentStatus === 'trialing';
+  // Wave 1: any active sub grants access to every app (universal access via app_key='any').
+  const canLaunch = hasAnySub || currentStatus === 'subscribed' || currentStatus === 'trialing';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -444,9 +443,9 @@ export function AppUpsellModal({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h3 className="text-xl font-heading font-bold text-foreground">{app.name}</h3>
-                {isSubscribed && (
+                {canLaunch && (
                   <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30">
-                    {currentStatus === 'trialing' ? 'Trial' : 'Active'}
+                    {currentStatus === 'trialing' ? 'Trial' : currentStatus === 'subscribed' ? 'Active' : 'Included'}
                   </Badge>
                 )}
               </div>
@@ -474,7 +473,7 @@ export function AppUpsellModal({
 
           {/* CTA footer */}
           <div className="flex flex-col gap-3 sm:flex-row pt-2 border-t border-border">
-            {isSubscribed ? (
+            {canLaunch ? (
               <Button className="flex-1 gap-2 btn-press" asChild>
                 <a href={appUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-4 w-4" />
@@ -482,30 +481,13 @@ export function AppUpsellModal({
                 </a>
               </Button>
             ) : (
-              <>
-                <Button
-                  variant="outline"
-                  className="flex-1 gap-1.5 border-brand-indigo/40 text-brand-indigo hover:bg-brand-indigo/5 hover:text-brand-indigo btn-press"
-                  disabled={trialLoading}
-                  onClick={() => {
-                    onStartTrial();
-                    onOpenChange(false);
-                  }}
-                >
-                  {trialLoading ? "Redirecting..." : "Try for $1 — 7 days"}
-                </Button>
-                <Button
-                  className="flex-1 gap-2 btn-press"
-                  disabled={subscribeLoading}
-                  onClick={() => {
-                    onSubscribe();
-                    onOpenChange(false);
-                  }}
-                >
-                  {subscribeLoading ? "Redirecting..." : `Subscribe — $${app.pricing?.monthly}/mo`}
-                  {!subscribeLoading && <ArrowUpRight className="h-4 w-4" />}
-                </Button>
-              </>
+              <Button
+                className="flex-1 gap-2 btn-press"
+                onClick={onViewPlans}
+              >
+                View plans to unlock
+                <ArrowUpRight className="h-4 w-4" />
+              </Button>
             )}
           </div>
         </div>

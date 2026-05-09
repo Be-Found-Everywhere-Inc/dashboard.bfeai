@@ -31,10 +31,6 @@ export function DashboardPage() {
     credits,
     recentInvoices,
     isLoading,
-    createCheckout,
-    checkoutLoading,
-    createTrialCheckout,
-    trialCheckoutLoading,
     createPortalSession,
     portalSessionLoading,
     refetch,
@@ -72,30 +68,8 @@ export function DashboardPage() {
     }
   }, [checkoutStatus, refetch, router]);
 
-  const handleSubscribe = async (appKey: string) => {
-    try {
-      const url = await createCheckout(appKey);
-      window.location.href = url;
-    } catch (error) {
-      toast({
-        title: "Unable to start checkout",
-        description: error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleStartTrial = async (appKey: string) => {
-    try {
-      const url = await createTrialCheckout(appKey);
-      window.location.href = url;
-    } catch (error) {
-      toast({
-        title: "Unable to start trial",
-        description: error instanceof Error ? error.message : "Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleViewPlans = () => {
+    router.push('/apps');
   };
 
   const handleManageBilling = async () => {
@@ -274,26 +248,16 @@ export function DashboardPage() {
                   })() : (
                     <div className="space-y-3">
                       <p className="text-sm text-muted-foreground">
-                        {app.pricing ? `$${app.pricing.monthly}/mo` : ''} — 300 credits monthly
+                        Included in any Lite, Plus, or Max plan.
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
                           className="gap-1.5 btn-press"
-                          disabled={checkoutLoading}
-                          onClick={() => void handleSubscribe(appKey)}
+                          onClick={handleViewPlans}
                         >
-                          {checkoutLoading ? "Redirecting..." : "Subscribe"}
-                          {!checkoutLoading && <ArrowUpRight className="h-3.5 w-3.5" />}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-1.5 border-brand-indigo/40 text-brand-indigo hover:bg-brand-indigo/5 hover:text-brand-indigo btn-press"
-                          disabled={trialCheckoutLoading}
-                          onClick={() => void handleStartTrial(appKey)}
-                        >
-                          {trialCheckoutLoading ? "Redirecting..." : "Try for $1 — 7 days"}
+                          View plans
+                          <ArrowUpRight className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           size="sm"
@@ -445,12 +409,13 @@ export function DashboardPage() {
           appKey={upsellApp}
           open={Boolean(upsellApp)}
           onOpenChange={(open) => !open && setUpsellApp(null)}
-          onSubscribe={() => void handleSubscribe(upsellApp)}
-          onStartTrial={() => void handleStartTrial(upsellApp)}
-          subscribeLoading={checkoutLoading}
-          trialLoading={trialCheckoutLoading}
+          onViewPlans={() => {
+            setUpsellApp(null);
+            handleViewPlans();
+          }}
           currentStatus={getAppStatus(upsellApp) === 'none' ? 'available' : getAppStatus(upsellApp) === 'trialing' ? 'trialing' : 'subscribed'}
           appUrl={APP_CATALOG[upsellApp].url}
+          hasAnySub={subscriptions.some(s => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due')}
         />
       )}
     </>
