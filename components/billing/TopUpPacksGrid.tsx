@@ -27,8 +27,12 @@ const TOPUP_PACKS: TopUpPack[] = [
   { key: "max", name: "Max Pack", credits: 5250, price: 499 },
 ];
 
+type TopUpPurchaseResult =
+  | { url: string }
+  | { ok: true; creditsAdded: number; balance: number; packName: string };
+
 type TopUpPacksGridProps = {
-  onPurchase: (packKey: string) => Promise<string>;
+  onPurchase: (packKey: string) => Promise<TopUpPurchaseResult>;
   purchaseLoading?: boolean;
 };
 
@@ -41,8 +45,17 @@ export const TopUpPacksGrid = ({
   const handlePurchase = async (pack: TopUpPack) => {
     setPurchasingKey(pack.key);
     try {
-      const url = await onPurchase(pack.key);
-      window.location.href = url;
+      const result = await onPurchase(pack.key);
+      if ("url" in result) {
+        // No saved PM → Stripe Checkout redirect
+        window.location.href = result.url;
+        return;
+      }
+      // Off-session quick-charge succeeded
+      toast({
+        title: `Added ${result.creditsAdded.toLocaleString()} credits`,
+        description: `${result.packName} purchased on your saved card. New balance: ${result.balance.toLocaleString()}.`,
+      });
     } catch (error) {
       toast({
         title: "Purchase failed",

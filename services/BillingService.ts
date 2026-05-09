@@ -107,6 +107,22 @@ export type CancelResponse =
   | CancelAcceptedResponse
   | CancelledResponse;
 
+/**
+ * Response from credits-topup. Either the user is redirected to Stripe Checkout
+ * (no saved PM, or quick-charge fell back) or the charge happened off-session
+ * with their saved card and credits were allocated immediately.
+ */
+export type TopUpPurchaseResult =
+  | { url: string }
+  | {
+      ok: true;
+      creditsAdded: number;
+      balance: number;
+      packName: string;
+      paymentIntentId?: string;
+      idempotentReplay?: boolean;
+    };
+
 // ---------------------------------------------------------------------------
 // Authenticated fetch helper
 // ---------------------------------------------------------------------------
@@ -215,9 +231,18 @@ export const BillingService = {
       `credits-history?limit=${limit}&offset=${offset}`
     ),
 
-  /** Purchase a credit top-up pack. Returns Stripe Checkout URL. */
+  /**
+   * Purchase a credit top-up pack.
+   *
+   * Returns one of two response shapes:
+   *  - `{ url }` — caller should redirect to Stripe Checkout (no saved PM, or
+   *    quick-charge failed and we fell back to Checkout)
+   *  - `{ ok: true, creditsAdded, balance, packName }` — off-session charge
+   *    succeeded; credits already allocated. Caller refreshes balance + closes
+   *    the modal/UI.
+   */
   purchaseTopUp: (packKey: string) =>
-    authenticatedFetch<{ url: string }>("credits-topup", {
+    authenticatedFetch<TopUpPurchaseResult>("credits-topup", {
       method: "POST",
       body: JSON.stringify({ packKey }),
     }),
