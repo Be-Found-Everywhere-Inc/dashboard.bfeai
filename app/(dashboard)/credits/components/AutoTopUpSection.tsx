@@ -45,7 +45,8 @@ function formatDate(iso: string | null): string {
 }
 
 function formatMtdDollars(cents: number): string {
-  return `$${(cents / 100).toFixed(0)}`;
+  const safe = Number.isFinite(cents) ? cents : 0;
+  return `$${(safe / 100).toFixed(0)}`;
 }
 
 // ---------------------------------------------------------------------------
