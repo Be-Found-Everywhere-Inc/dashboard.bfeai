@@ -14,13 +14,15 @@ This file provides guidance to Claude Code for working with the BFEAI Dashboard 
 - Profile management with avatar upload
 - Session management across all BFEAI apps
 - Account deletion with data cleanup
-- Per-app subscriptions via Stripe
-- Dual-pool credit system (subscription + top-up)
+- Unified Lite/Plus/Max subscriptions (universal access to all apps) + grandfathered per-app plans (Wave 1.5)
+- Tri-pool credit system (subscription + top-up + trial)
 - Credit top-up packs (5 tiers)
-- Stripe Customer Portal integration
+- Out-of-Credits modal (`<OutOfCreditsModal>` + `<CreditsProvider>` in `@bfeai/ui`) — Wave 2
+- Auto-topup via off-session PaymentIntent, monthly spend cap, `<InlineCardForm>` — Wave 3
+- Stripe Customer Portal integration (plan-switching disabled; cancel/invoices/payment-method only)
 - Invoice and credit transaction history
 - 4-step cancellation flow with retention offers
-- App marketplace
+- App marketplace (`/apps` — Lite/Plus/Max for new users; legacy plans for grandfathered subscribers)
 - Security features: rate limiting, CSRF, XSS protection
 
 **Production URL:** https://dashboard.bfeai.com
@@ -288,14 +290,15 @@ The `.bfeai.com` domain cookie is readable by:
 
 ## 6. Credits System
 
-### Dual-Pool Architecture
+### Tri-Pool Architecture
 
 | Pool | Source | Cap | Drain Order |
 |------|--------|-----|-------------|
-| `subscription_balance` | Monthly allocation (300/mo) | 3x monthly = 900 max | Second |
-| `topup_balance` | One-time purchases | Uncapped | First |
+| `trial_balance` | $1/7-day trial allocation (100 credits) | Trial period only | First |
+| `topup_balance` | One-time purchases | Uncapped | Second |
+| `subscription_balance` | Monthly allocation (500/1700/5500 for Lite/Plus/Max) | 3x monthly (1500/5100/16500) | Third |
 
-Top-up credits drain first, then subscription credits.
+Trial credits drain first (expire at trial end), then top-up, then subscription.
 
 ### Top-Up Packs
 
@@ -322,7 +325,7 @@ All billing operations go through Netlify Functions that call Stripe API.
 | `stripe-portal` | POST | Create Stripe Customer Portal session |
 | `stripe-checkout` | POST | Create checkout session |
 | `stripe-cancel` | POST | Cancel with retention offers |
-| `stripe-webhook` | POST | Handle Stripe webhook events (8 types) |
+| `stripe-webhook` | POST | Handle Stripe webhook events (11 types) |
 | `credits-balance` | GET | Current credit balance (dual pool) |
 | `credits-history` | GET | Credit transaction history |
 | `credits-check` | POST | Check sufficient credits |
@@ -345,6 +348,9 @@ Toggle via `STRIPE_TEST_MODE` env var. When `true`, `getStripeEnv()` (in `lib/st
 | `customer.subscription.deleted` | Sync final cancellation |
 | `customer.subscription.paused` | Sync pause state |
 | `customer.subscription.resumed` | Sync resume state |
+| `payment_intent.succeeded` | Auto-topup charge confirmed — logged; allocation is idempotent no-op if sync path ran first (Wave 3) |
+| `payment_intent.requires_action` | Auto-topup 3DS challenge — disable auto-topup, email user (Wave 3) |
+| `charge.refunded` | Full refund clawback: decrement topup_balance; partial refunds → admin email only (Wave 3) |
 
 ---
 
@@ -431,14 +437,33 @@ STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 
-# Stripe Price IDs
+# Stripe Price IDs — Unified tiers (Wave 1)
+STRIPE_PRICE_LITE_MONTHLY=
+STRIPE_PRICE_PLUS_MONTHLY=
+STRIPE_PRICE_MAX_MONTHLY=
+
+# Stripe Price IDs — Legacy grandfathered plans (still active for existing subscribers)
 STRIPE_PRICE_KEYWORDS_MONTHLY=
 STRIPE_PRICE_KEYWORDS_YEARLY=
 STRIPE_PRICE_LABS_BASE_MONTHLY=
 STRIPE_PRICE_LABS_BASE_YEARLY=
-STRIPE_PRICE_LABS_AEO_MONTHLY=
-STRIPE_PRICE_LABS_AEO_YEARLY=
+STRIPE_PRICE_OFFPAGE_MONTHLY=
+STRIPE_PRICE_OFFPAGE_YEARLY=
+
+# Stripe Price IDs — Trial (still required; single-trial uses this for $1 setup fee)
 STRIPE_PRICE_TRIAL_SETUP_FEE=
+
+# DEPRECATED — removed from plans.ts (no active subscribers; archived in Stripe):
+# STRIPE_PRICE_LABS_AEO_MONTHLY
+# STRIPE_PRICE_LABS_AEO_YEARLY
+# STRIPE_PRICE_DUAL_TRIAL_SETUP_FEE  (Wave 1.5 removal)
+# STRIPE_PRICE_BUNDLE_MONTHLY         (Wave 1.5 removal)
+
+# Internal API (Wave 2 — server-to-server calls from consumer apps)
+INTERNAL_API_TOKEN=
+
+# Auto-topup beta flag (Wave 3 — comma-separated user UUIDs; delete after smoke test)
+AUTO_TOPUP_BETA_USERS=
 
 # Email
 RESEND_API_KEY=
@@ -451,7 +476,7 @@ STRIPE_TEST_MODE=false
 STRIPE_SECRET_KEY_TEST=
 STRIPE_WEBHOOK_SECRET_TEST=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_TEST=
-# ... plus _TEST variants for all STRIPE_PRICE_* and STRIPE_COUPON_*
+# ... plus _TEST variants for all STRIPE_PRICE_* vars above
 ```
 
 ### Security
