@@ -1,6 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { withErrorHandling, jsonResponse } from "./utils/http";
 import { requireAuth, supabaseAdmin } from "./utils/supabase-admin";
+import { stripe } from "./utils/stripe";
 import { TOPUP_PACKS } from "../../config/plans";
 import { isAutoTopUpBetaUser } from "../../lib/feature-flags";
 
@@ -93,6 +94,38 @@ export const handler: Handler = withErrorHandling(async (event) => {
 
   if (dbError) {
     return jsonResponse(500, { error: dbError.message }, event);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mirror the saved PM as the customer's default payment method on Stripe.
+  //
+  // When the user toggles auto-topup back ON later, setup-intent-create reads
+  // customer.invoice_settings.default_payment_method to decide between
+  // "use card on file" vs "enter new card." Without this mirror, the PM is
+  // attached to the customer but not flagged as default, so the UI would
+  // re-prompt for card entry on every toggle-on. Fire-and-forget — failure
+  // here doesn't undo the row update; the worst case is a re-prompt next
+  // toggle, which is recoverable.
+  // ---------------------------------------------------------------------------
+  if (body.auto_topup_payment_method_id !== undefined) {
+    try {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("stripe_customer_id")
+        .eq("id", user.id)
+        .single();
+      const customerId = profile?.stripe_customer_id;
+      if (customerId) {
+        await stripe.customers.update(customerId, {
+          invoice_settings: { default_payment_method: body.auto_topup_payment_method_id },
+        });
+      }
+    } catch (err) {
+      console.warn(
+        "[settings-billing-update] Failed to mirror PM as customer default — re-prompt on next toggle:",
+        err
+      );
+    }
   }
 
   return jsonResponse(200, { ok: true }, event);

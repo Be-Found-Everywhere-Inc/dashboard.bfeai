@@ -38,6 +38,14 @@ vi.mock("../../../lib/feature-flags", () => ({
   isAutoTopUpBetaUser: mockIsAutoTopUpBetaUser,
 }));
 
+// stripe is used to mirror the saved PM as customer default — mock the module
+// so the test doesn't need STRIPE_SECRET_KEY at load time.
+vi.mock("../../../netlify/functions/utils/stripe", () => ({
+  stripe: {
+    customers: { update: vi.fn().mockResolvedValue({}) },
+  },
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
