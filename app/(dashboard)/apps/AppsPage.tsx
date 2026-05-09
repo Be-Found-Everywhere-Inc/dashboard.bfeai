@@ -157,18 +157,6 @@ export function AppsPage() {
               Powerful tools to grow your business. One subscription unlocks every app.
             </p>
           </div>
-          {subscriptions.length > 0 && (
-            <div className="flex gap-2">
-              {subscriptions.map((sub) => {
-                const label = APP_CATALOG[sub.appKey as AppKey]?.shortName ?? sub.appKey;
-                return (
-                  <Badge key={sub.id} variant="outline" className="text-sm">
-                    {label}: {sub.status === 'trialing' ? 'Trial' : 'Active'}
-                  </Badge>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
 
