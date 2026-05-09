@@ -296,32 +296,18 @@ export function AppsPage() {
 
               <div className="relative">
                 <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${app.gradient} text-white shadow-lg`}
-                      >
-                        <IconComponent className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-xl font-heading">{app.name}</CardTitle>
-                        <CardDescription className="text-sm">
-                          {app.description}
-                        </CardDescription>
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${app.gradient} text-white shadow-lg`}
+                    >
+                      <IconComponent className="h-6 w-6" />
                     </div>
-                    {status === 'subscribed' && (
-                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30">
-                        <Check className="mr-1 h-3 w-3" />
-                        Active
-                      </Badge>
-                    )}
-                    {status === 'trialing' && (
-                      <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30">
-                        <Zap className="mr-1 h-3 w-3" />
-                        Trial
-                      </Badge>
-                    )}
+                    <div>
+                      <CardTitle className="text-xl font-heading">{app.name}</CardTitle>
+                      <CardDescription className="text-sm">
+                        {app.description}
+                      </CardDescription>
+                    </div>
                   </div>
                 </CardHeader>
 
