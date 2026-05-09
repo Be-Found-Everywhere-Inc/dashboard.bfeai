@@ -38,6 +38,8 @@
   "exclude": [
     "node_modules",
     "components/ui-backup",
-    "shared-auth-library"
+    "shared-auth-library",
+    "vitest.config.ts",
+    "tests/**"
   ]
 }
