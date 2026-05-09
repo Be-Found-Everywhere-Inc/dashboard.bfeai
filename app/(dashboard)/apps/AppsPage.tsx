@@ -159,11 +159,14 @@ export function AppsPage() {
           </div>
           {subscriptions.length > 0 && (
             <div className="flex gap-2">
-              {subscriptions.map((sub) => (
-                <Badge key={sub.id} variant="outline" className="text-sm">
-                  {sub.appKey === 'keywords' ? 'Keywords' : 'LABS'}: {sub.status === 'trialing' ? 'Trial' : 'Active'}
-                </Badge>
-              ))}
+              {subscriptions.map((sub) => {
+                const label = APP_CATALOG[sub.appKey as AppKey]?.shortName ?? sub.appKey;
+                return (
+                  <Badge key={sub.id} variant="outline" className="text-sm">
+                    {label}: {sub.status === 'trialing' ? 'Trial' : 'Active'}
+                  </Badge>
+                );
+              })}
             </div>
           )}
         </div>
@@ -193,7 +196,6 @@ export function AppsPage() {
               <ul className="text-sm space-y-1.5 text-muted-foreground">
                 <li>500 credits/month</li>
                 <li>All BFEAI apps included</li>
-                <li>Credits cap at 1,500</li>
               </ul>
               <Button
                 className="w-full btn-press"
@@ -222,7 +224,6 @@ export function AppsPage() {
               <ul className="text-sm space-y-1.5 text-muted-foreground">
                 <li>1,700 credits/month</li>
                 <li>All BFEAI apps included</li>
-                <li>Credits cap at 5,100</li>
               </ul>
               <Button
                 className="w-full btn-press"
@@ -248,7 +249,6 @@ export function AppsPage() {
               <ul className="text-sm space-y-1.5 text-muted-foreground">
                 <li>5,500 credits/month</li>
                 <li>All BFEAI apps included</li>
-                <li>Credits cap at 16,500</li>
               </ul>
               <Button
                 className="w-full btn-press"
