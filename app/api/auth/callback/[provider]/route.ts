@@ -198,6 +198,22 @@ export async function GET(
       // Don't fail the login, just log the error
     }
 
+    // First-time OAuth sign-in → send the standard welcome email.
+    // existingProfile was queried above to preserve full_name/avatar on
+    // repeat sign-ins; null means this is a brand-new user.
+    if (!existingProfile && user.email) {
+      try {
+        const { sendStandardWelcomeEmail } = await import('@/lib/email/welcome');
+        const firstName = (oauthFullName as string | undefined)?.split(' ')[0];
+        void sendStandardWelcomeEmail({
+          to: user.email,
+          firstName,
+        });
+      } catch (err) {
+        console.warn('[OAuth] Failed to dispatch welcome email:', err);
+      }
+    }
+
     // Log successful OAuth login
     await logSecurityEvent(
       'OAUTH_LOGIN_SUCCESS',
@@ -222,6 +238,20 @@ export async function GET(
     } else {
       // Relative URL - resolve against app URL
       finalRedirect = new URL(redirect, appUrl).toString();
+    }
+
+    // Tag first-time OAuth signups so the dashboard can fire a conversion
+    // event once on landing. The flag is consumed-and-stripped client-side.
+    if (!existingProfile) {
+      try {
+        const tagged = new URL(finalRedirect);
+        tagged.searchParams.set('signup', '1');
+        tagged.searchParams.set('method', provider);
+        finalRedirect = tagged.toString();
+      } catch {
+        // If finalRedirect isn't a parseable URL the analytics tag is
+        // skipped; not worth blocking sign-in.
+      }
     }
 
     console.log('[OAuth] Token generated, finalRedirect:', {

@@ -32,11 +32,6 @@ export interface AppConfig {
   gradient: string;
   url: string;
   features: string[];
-  pricing?: {
-    monthly: number;
-    yearly: number;
-    currency: string;
-  };
   status: AppStatus;
   /**
    * If true, this app is only visible to users for whom the gate function
@@ -63,11 +58,6 @@ export const APP_CATALOG: Record<AppKey, AppConfig> = {
       'Competitor SERP analysis',
       'CSV export functionality',
     ],
-    pricing: {
-      monthly: 29,
-      yearly: 290,
-      currency: 'USD',
-    },
     status: 'active',
   },
   labs: {
@@ -87,11 +77,6 @@ export const APP_CATALOG: Record<AppKey, AppConfig> = {
       'Competitor visibility tracking',
       'Scheduled scan automation',
     ],
-    pricing: {
-      monthly: 29,
-      yearly: 290,
-      currency: 'USD',
-    },
     status: 'active',
   },
   offpage: {
@@ -111,11 +96,6 @@ export const APP_CATALOG: Record<AppKey, AppConfig> = {
       'Browser session automation',
       'Credit-based usage tracking',
     ],
-    pricing: {
-      monthly: 49,
-      yearly: 490,
-      currency: 'USD',
-    },
     status: 'beta',
     betaOnly: true,
   },

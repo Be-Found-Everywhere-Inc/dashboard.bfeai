@@ -168,6 +168,14 @@
   * {
     @apply border-border;
   }
+
+  /* WCAG 2.1 AA — 2.4.7 Focus Visible. Tailwind preflight strips the default
+     browser outline; this restores a brand-colored ring for keyboard users. */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
 }
 
 /* Premium Font Loading */

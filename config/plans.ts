@@ -1,8 +1,18 @@
 /**
  * Plan and top-up pack configuration for the Stripe + Credits billing model.
  *
- * Currently only Keywords ($29/mo, 300 credits) is available.
- * Top-up packs are one-time purchases for additional credits.
+ * New users subscribe to one of the unified tiers — Lite ($49/mo, 500 cr),
+ * Plus ($144/mo, 1,700 cr), or Max ($444/mo, 5,500 cr) — which grant universal
+ * access to every BFEAI app via the `app_key='any'` sentinel.
+ *
+ * The legacy per-app subscriptions (Keywords, LABS Base, OffPage) and the
+ * deprecated Keywords+LABS bundle are retained here ONLY so the Stripe webhook
+ * can resolve grandfathered subscribers by Price ID. They are not surfaced in
+ * any new-user UI and no new subscriptions can be created against them.
+ * See `GRANDFATHERED_BUNDLE_SUBSCRIPTION_IDS` below for the bundle case.
+ *
+ * Top-up packs are one-time purchases for additional credits, available to
+ * users on any tier.
  */
 
 import { getStripeEnv } from "../lib/stripe-env";
@@ -81,7 +91,7 @@ export const TOPUP_PACK_ORDER: TopUpPackKey[] = ["starter", "builder", "power", 
 /** The pack with the best value for the "Best Value" badge */
 export const BEST_VALUE_PACK: TopUpPackKey = "power";
 
-/** Keywords subscription: $29/mo, 300 credits, caps at 900 */
+/** LEGACY (grandfathered only). Resolved by Stripe priceId for existing subscribers. */
 export const KEYWORDS_SUBSCRIPTION = {
   appKey: "keywords",
   tier: "standard",
@@ -92,7 +102,7 @@ export const KEYWORDS_SUBSCRIPTION = {
   stripePriceIdYearly: getStripeEnv("STRIPE_PRICE_KEYWORDS_YEARLY"),
 } as const;
 
-/** LABS Base: $29/mo, 300 credits, caps at 900 */
+/** LEGACY (grandfathered only). Resolved by Stripe priceId for existing subscribers. */
 export const LABS_BASE_SUBSCRIPTION = {
   appKey: "labs",
   tier: "base_tracker",
@@ -103,7 +113,7 @@ export const LABS_BASE_SUBSCRIPTION = {
   stripePriceIdYearly: getStripeEnv("STRIPE_PRICE_LABS_BASE_YEARLY"),
 } as const;
 
-/** OffPage Agent: $49/mo, 500 credits, caps at 1500 */
+/** LEGACY (grandfathered only). Resolved by Stripe priceId for existing subscribers. */
 export const OFFPAGE_SUBSCRIPTION = {
   appKey: "offpage",
   tier: "standard",

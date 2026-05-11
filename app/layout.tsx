@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ToasterProvider } from "@/components/providers/toaster-provider";
 import { AuthProvider } from "@/lib/bfeai-auth";
+import { PublicAnalytics } from "@/components/analytics/PublicAnalytics";
 import "./globals.css";
 
 const inter = Inter({
@@ -61,6 +62,7 @@ export default function RootLayout({
             </AuthProvider>
           </QueryProvider>
           <ToasterProvider />
+          <PublicAnalytics />
         </ThemeProvider>
       </body>
     </html>

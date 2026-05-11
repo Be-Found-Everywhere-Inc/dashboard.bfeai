@@ -90,17 +90,17 @@ export function BillingPage() {
             </Button>
           </div>
 
-          {subscriptions.filter((s) => s.stripeManaged && !s.cancelAtPeriodEnd && s.status === "active").map((sub) => (
-            <div key={sub.id} className="flex items-center justify-between rounded-2xl border border-red-200 bg-red-50/50 p-4 dark:border-red-900/50 dark:bg-red-900/10">
+          {subscriptions.some((s) => s.stripeManaged && !s.cancelAtPeriodEnd && s.status === "active") && (
+            <div className="flex items-center justify-between rounded-2xl border border-red-200 bg-red-50/50 p-4 dark:border-red-900/50 dark:bg-red-900/10">
               <div>
-                <p className="text-sm font-semibold text-red-900 dark:text-red-200">Cancel {sub.appKey === 'labs' ? 'LABS' : 'Keywords'} subscription</p>
+                <p className="text-sm font-semibold text-red-900 dark:text-red-200">Cancel subscription</p>
                 <p className="text-xs text-red-700 dark:text-red-300">Cancel at the end of the current billing period.</p>
               </div>
               <Button variant="destructive" size="sm" onClick={() => setCancellationDialogOpen(true)}>
                 Cancel
               </Button>
             </div>
-          ))}
+          )}
         </CardContent>
       </Card>
 
@@ -112,7 +112,7 @@ export function BillingPage() {
           return cancelSub
             ? {
                 id: cancelSub.id,
-                planName: cancelSub.appKey === 'labs' ? 'LABS' : 'Keywords',
+                planName: 'Your subscription',
                 amount: cancelSub.amount,
                 currency: cancelSub.currency,
                 nextBillingDate: cancelSub.nextBillingDate,

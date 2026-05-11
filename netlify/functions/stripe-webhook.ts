@@ -290,7 +290,8 @@ async function handlePaymentLinkCheckout(
   let userId = existingUserId;
 
   // -----------------------------------------------------------------------
-  // Subscription mode: regular subs ($29/mo) and trial subs ($1 + 7-day trial)
+  // Subscription mode: regular subs (Lite/Plus/Max or legacy per-app) and
+  // trial subs ($1 + 7-day trial).
   // -----------------------------------------------------------------------
   if (session.mode === "subscription" && session.subscription) {
     const subscriptionId = typeof session.subscription === "string"
@@ -492,7 +493,7 @@ async function provisionUnauthenticatedTrialUser(customerId: string): Promise<st
             appName,
             resetLink,
             trialDays: 7,
-            chargeAmount: plan ? `$${plan.monthlyPrice}/mo` : "$29/mo",
+            chargeAmount: plan ? `$${plan.monthlyPrice}/mo` : "your subscription rate",
           });
         }
       } catch (err) {
@@ -801,8 +802,9 @@ async function handleTrialWillEnd(subscription: Stripe.Subscription) {
     return;
   }
 
-  // Determine charge amount from subscription price
-  let chargeAmount = "$29/mo"; // default
+  // Determine charge amount from subscription price (falls back to a neutral
+  // string if the price isn't resolvable — legacy default was "$29/mo").
+  let chargeAmount = "your subscription rate";
   const firstItem = subscription.items?.data?.[0];
   if (firstItem) {
     const priceId = typeof firstItem.price === "string" ? firstItem.price : firstItem.price?.id;

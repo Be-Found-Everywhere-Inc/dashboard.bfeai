@@ -242,6 +242,127 @@ function escapeHtml(str: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Standard welcome email (authenticated signup — email or OAuth)
+// ---------------------------------------------------------------------------
+
+interface StandardWelcomeEmailData {
+  firstName?: string;
+  dashboardUrl: string;
+}
+
+/**
+ * Welcome email for users who signed up via the standard auth flow (email
+ * form or OAuth provider). These users already have a way in — they don't
+ * need a password-reset link like the unauth Stripe-trial flow does. This
+ * email confirms the account, states the value prop, and points at the
+ * dashboard as the next step.
+ */
+export function renderStandardWelcomeEmail(
+  params: StandardWelcomeEmailData,
+): { subject: string; html: string; text: string } {
+  const safeFirstName = params.firstName
+    ? stripControl(params.firstName)
+    : undefined;
+  const safeDashboardUrl = stripControl(params.dashboardUrl);
+
+  const greetingHtml = params.firstName
+    ? `Hi ${escapeHtml(params.firstName)},`
+    : "Welcome,";
+  const dashboardUrlHtml = escapeHtml(params.dashboardUrl);
+
+  const subject = "Welcome to BFEAI — here's how to get started";
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to BFEAI</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f7;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#533577,#454D9A);padding:32px 40px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">BFEAI</h1>
+              <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Be Found Everywhere AI</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px;">
+              <p style="margin:0 0 16px;color:#333;font-size:16px;line-height:1.6;">${greetingHtml}</p>
+              <p style="margin:0 0 16px;color:#333;font-size:16px;line-height:1.6;">
+                Welcome to BFEAI &mdash; the platform built to help you get found everywhere AI searches.
+              </p>
+              <p style="margin:0 0 24px;color:#333;font-size:16px;line-height:1.6;">
+                Your account is ready. From your dashboard you can:
+              </p>
+
+              <ul style="margin:0 0 24px;padding:0 0 0 20px;color:#333;font-size:16px;line-height:1.8;">
+                <li>Run AI-powered keyword research with the <strong>Keyword Agent</strong></li>
+                <li>Track your brand visibility across ChatGPT, Gemini, Perplexity, Claude, and Google AI with <strong>LABS</strong></li>
+                <li>Build off-page authority at scale with the <strong>OffPage Agent</strong></li>
+              </ul>
+
+              <!-- CTA -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px auto;">
+                <tr>
+                  <td style="background-color:#533577;border-radius:6px;">
+                    <a href="${dashboardUrlHtml}" style="display:inline-block;padding:14px 32px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:600;">
+                      Open your dashboard
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:24px 0 0;color:#666;font-size:14px;line-height:1.6;">
+                Questions? Reply to this email and we'll get back to you within one business day.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 40px;background-color:#f8f9fc;border-top:1px solid #e5e7eb;text-align:center;">
+              <p style="margin:0;color:#999;font-size:12px;line-height:1.5;">
+                You're receiving this email because you signed up for BFEAI.
+                <br>
+                <a href="${dashboardUrlHtml}/settings" style="color:#533577;text-decoration:underline;">Account settings</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const plainGreeting = safeFirstName ? `Hi ${safeFirstName},` : "Welcome,";
+  const text = `${plainGreeting}
+
+Welcome to BFEAI — the platform built to help you get found everywhere AI searches.
+
+Your account is ready. From your dashboard you can:
+- Run AI-powered keyword research with the Keyword Agent
+- Track your brand visibility across ChatGPT, Gemini, Perplexity, Claude, and Google AI with LABS
+- Build off-page authority at scale with the OffPage Agent
+
+Open your dashboard: ${safeDashboardUrl}
+
+Questions? Reply to this email and we'll get back to you within one business day.
+
+— The BFEAI Team`;
+
+  return { subject, html, text };
+}
+
+// ---------------------------------------------------------------------------
 // Scheduled scan skipped (low credits)
 // ---------------------------------------------------------------------------
 

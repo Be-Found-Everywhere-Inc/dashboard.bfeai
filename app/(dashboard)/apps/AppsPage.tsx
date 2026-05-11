@@ -16,6 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Butto
 import { APP_CATALOG, getActiveApps, type AppConfig, type AppKey } from "@/config/apps";
 import { useBilling } from "@/hooks/useBilling";
 import { AppUpsellModal } from "@/components/billing/AppUpsellModal";
+import { trackBeginCheckout } from "@/components/analytics/events";
 import { toast } from "@bfeai/ui";
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -27,7 +28,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
 export function AppsPage() {
   const {
     subscriptions,
-    getSubscription,
     createUnifiedTrialCheckout,
     unifiedTrialCheckoutLoading,
     createTierCheckout,
@@ -57,6 +57,7 @@ export function AppsPage() {
     if (trialParam === "true" && !trialRedirecting && !trialAttempted) {
       setTrialRedirecting(true);
       setTrialAttempted(true);
+      trackBeginCheckout({ plan: "lite", isTrial: true });
       createUnifiedTrialCheckout()
         .then((url) => {
           window.location.href = url;
@@ -72,15 +73,6 @@ export function AppsPage() {
     }
   }, [searchParams, createUnifiedTrialCheckout, trialRedirecting, trialAttempted]);
 
-  const getAppStatus = (app: AppConfig): 'subscribed' | 'trialing' | 'available' => {
-    const sub = getSubscription(app.key);
-    if (sub) {
-      if (sub.status === 'active') return 'subscribed';
-      if (sub.status === 'trialing') return 'trialing';
-    }
-    return 'available';
-  };
-
   const handleLaunchApp = (app: AppConfig) => {
     window.open(app.url, '_blank');
   };
@@ -92,6 +84,7 @@ export function AppsPage() {
 
   const handleUnifiedTrial = async () => {
     try {
+      trackBeginCheckout({ plan: "lite", isTrial: true });
       const url = await createUnifiedTrialCheckout();
       window.location.href = url;
     } catch (error) {
@@ -105,6 +98,7 @@ export function AppsPage() {
 
   const handleTierCheckout = async (tier: "lite" | "plus" | "max") => {
     try {
+      trackBeginCheckout({ plan: tier, isTrial: false });
       const url = await createTierCheckout(tier);
       window.location.href = url;
     } catch (error) {
@@ -123,7 +117,6 @@ export function AppsPage() {
   );
 
   const visibleApps = getActiveApps({ user_tier: userTier });
-  const hasAvailableApp = visibleApps.some((app) => getAppStatus(app) === 'available');
 
   // Show loading state while auto-triggering trial checkout
   if (trialRedirecting) {
@@ -271,17 +264,12 @@ export function AppsPage() {
       {/* Apps Grid */}
       <div className="grid gap-6 md:grid-cols-2">
         {visibleApps.map((app, i) => {
-          const status = getAppStatus(app);
           const IconComponent = ICON_MAP[app.icon] || Sparkles;
 
           return (
             <Card
               key={app.key}
-              className={`animate-fade-in-up card-hover-lift relative overflow-hidden border transition cursor-pointer ${
-                status === 'subscribed' || status === 'trialing'
-                  ? 'border-brand-indigo/25 shadow-sm'
-                  : 'border-border'
-              }`}
+              className="animate-fade-in-up card-hover-lift relative overflow-hidden border border-border transition cursor-pointer"
               style={{ animationDelay: `${(i + 1) * 100 + 200}ms` }}
               onClick={(e) => {
                 // Don't open modal if clicking a button or link
@@ -325,15 +313,6 @@ export function AppsPage() {
                       </li>
                     )}
                   </ul>
-
-                  {/* Pricing */}
-                  {app.pricing && status === 'available' && (
-                    <div className="flex items-baseline gap-1 pt-2 border-t border-border/50">
-                      <span className="text-2xl font-heading font-bold text-foreground">${app.pricing.monthly}</span>
-                      <span className="text-sm text-muted-foreground">/month</span>
-                      <span className="ml-2 text-xs text-muted-foreground">300 credits/mo</span>
-                    </div>
-                  )}
 
                   <div className="flex gap-2 pt-2">
                     {hasAnySub ? (
@@ -389,7 +368,7 @@ export function AppsPage() {
             setSelectedApp(null);
             handleViewPlans();
           }}
-          currentStatus={getAppStatus(APP_CATALOG[selectedApp])}
+          currentStatus="available"
           appUrl={APP_CATALOG[selectedApp].url}
           hasAnySub={hasAnySub}
         />

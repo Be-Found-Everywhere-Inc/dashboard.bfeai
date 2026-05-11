@@ -1,15 +1,6 @@
 import type { Handler, HandlerResponse } from "@netlify/functions";
 import { jsonResponse, HttpError } from "./utils/http";
-import {
-  stripe,
-  createPublicTrialCheckoutSession,
-  checkTrialEligibility,
-  getUserIdFromStripeCustomer,
-  getOrCreateStripeCustomerByEmail,
-} from "./utils/stripe";
-import {
-  findSubscriptionPlan,
-} from "../../config/plans";
+import { stripe } from "./utils/stripe";
 import { getStripeEnv } from "../../lib/stripe-env";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
@@ -67,22 +58,25 @@ function corsHeaders(origin?: string): Record<string, string> {
 // Valid app keys + plan slugs
 // ---------------------------------------------------------------------------
 
-const VALID_APP_KEYS = new Set(["keywords", "labs"]);
-
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://dashboard.bfeai.com";
-const SUCCESS_URL = `${DASHBOARD_URL}/?checkout=success`;
 const TRIAL_SUCCESS_URL = `${DASHBOARD_URL}/?checkout=trial-success`;
 const CANCEL_URL = `${DASHBOARD_URL}/?checkout=cancelled`;
+const LITE_TRIAL_REDIRECT_URL = `${DASHBOARD_URL}/apps?trial=true`;
 
 /**
- * Valid plan slugs for GET ?plan= parameter.
- * Each maps to a Stripe Checkout session configuration.
+ * Valid plan slugs for GET ?plan= parameter. Marketing CTAs hit this endpoint
+ * directly (no login). The only supported new-user entry is the unified Lite
+ * trial; the legacy per-app slugs below are 303-redirected to /apps instead so
+ * existing campaign URLs don't 404 while marketing migrates.
  */
-const VALID_PLANS = new Set([
-  "keywords-trial",   // $1 Keywords 7-day trial
-  "labs-trial",        // $1 LABS 7-day trial
-  "keywords",          // $29/mo Keywords subscription
-  "labs",              // $29/mo LABS subscription
+const VALID_PLANS = new Set(["lite-trial"]);
+
+const LEGACY_PLAN_SLUGS = new Set([
+  "keywords-trial",
+  "labs-trial",
+  "keywords",
+  "labs",
+  "bundle",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -148,6 +142,15 @@ async function handleGetCheckout(
 
     const plan = event.queryStringParameters?.plan;
 
+    // Legacy per-app paid-traffic slugs land on the unified Lite trial entry.
+    if (plan && LEGACY_PLAN_SLUGS.has(plan)) {
+      return {
+        statusCode: 303,
+        headers: { Location: LITE_TRIAL_REDIRECT_URL },
+        body: "",
+      };
+    }
+
     if (!plan || !VALID_PLANS.has(plan)) {
       return {
         statusCode: 400,
@@ -190,19 +193,16 @@ async function handleGetCheckout(
  */
 async function createCheckoutSessionForPlan(plan: string): Promise<Stripe.Checkout.Session> {
   switch (plan) {
-    // ----- Single-app trials ($1 + 7-day trial) -----
-    case "keywords-trial":
-    case "labs-trial": {
-      const appKey = plan === "keywords-trial" ? "keywords" : "labs";
-      const sub = findSubscriptionPlan(appKey);
-      const recurringPriceId = sub?.stripePriceIdMonthly;
+    // Unified Lite trial: $1 setup + 7-day trial on the universal-access Lite tier.
+    case "lite-trial": {
+      const priceId = getStripeEnv("STRIPE_PRICE_LITE_MONTHLY");
 
-      if (!recurringPriceId) {
-        throw new HttpError(500, `No price configured for ${appKey}`);
+      if (!priceId) {
+        throw new HttpError(500, "No price configured for Lite plan");
       }
 
       const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-        { price: recurringPriceId, quantity: 1 },
+        { price: priceId, quantity: 1 },
       ];
       if (TRIAL_SETUP_FEE_PRICE_ID) {
         lineItems.push({ price: TRIAL_SETUP_FEE_PRICE_ID, quantity: 1 });
@@ -214,33 +214,10 @@ async function createCheckoutSessionForPlan(plan: string): Promise<Stripe.Checko
         line_items: lineItems,
         subscription_data: {
           trial_period_days: 7,
-          metadata: { app_key: appKey },
+          metadata: { app_key: "any", tier: "lite" },
         },
-        metadata: { type: "trial", app_key: appKey, flow: "unauthenticated" },
+        metadata: { type: "trial", app_key: "any", tier: "lite", flow: "unauthenticated" },
         success_url: TRIAL_SUCCESS_URL,
-        cancel_url: CANCEL_URL,
-      });
-    }
-
-    // ----- Regular subscriptions ($29/mo) -----
-    case "keywords":
-    case "labs": {
-      const sub = findSubscriptionPlan(plan);
-      const priceId = sub?.stripePriceIdMonthly;
-
-      if (!priceId) {
-        throw new HttpError(500, `No price configured for ${plan}`);
-      }
-
-      return stripe.checkout.sessions.create({
-        mode: "subscription",
-        allow_promotion_codes: true,
-        line_items: [{ price: priceId, quantity: 1 }],
-        subscription_data: {
-          metadata: { app_key: plan },
-        },
-        metadata: { type: "subscription", app_key: plan, flow: "unauthenticated" },
-        success_url: SUCCESS_URL,
         cancel_url: CANCEL_URL,
       });
     }
@@ -256,136 +233,21 @@ async function createCheckoutSessionForPlan(plan: string): Promise<Stripe.Checko
 // ---------------------------------------------------------------------------
 
 async function handlePostCheckout(
-  event: Parameters<Handler>[0],
+  _event: Parameters<Handler>[0],
   cors: Record<string, string>
 ): Promise<HandlerResponse> {
-  try {
-    // Rate limiting (allowlisted IPs bypass)
-    if (rateLimiter) {
-      const ip =
-        event.headers["x-forwarded-for"]?.split(",")[0].trim() ??
-        event.headers["x-real-ip"] ??
-        event.headers["cf-connecting-ip"] ??
-        "unknown";
-
-      if (!RATE_LIMIT_ALLOWLIST.has(ip)) {
-        const { success } = await rateLimiter.limit(ip);
-        if (!success) {
-          return withCors(jsonResponse(429, { error: "Too many requests. Try again later." }), cors);
-        }
-      }
-    }
-
-    // Parse body
-    if (!event.body) {
-      return withCors(jsonResponse(400, { error: "Missing request body" }), cors);
-    }
-
-    let appKey: string | undefined;
-    let tier: string | undefined;
-    let billingPeriod: "monthly" | "yearly" = "monthly";
-    let email: string | undefined;
-    let trial = false;
-
-    try {
-      const body = JSON.parse(event.body);
-      appKey = body.appKey;
-      tier = body.tier;
-      if (body.billingPeriod === "yearly") billingPeriod = "yearly";
-      email = body.email?.trim()?.toLowerCase();
-      if (body.trial === true) trial = true;
-    } catch {
-      return withCors(jsonResponse(400, { error: "Invalid JSON body" }), cors);
-    }
-
-    if (!appKey || !VALID_APP_KEYS.has(appKey)) {
-      return withCors(jsonResponse(400, { error: `Invalid appKey. Must be one of: ${[...VALID_APP_KEYS].join(", ")}` }), cors);
-    }
-
-    // Always pre-create the Stripe customer before creating checkout sessions.
-    // Never use customer_email on sessions — Stripe auto-creates a second
-    // customer object when customer_email is used, causing duplicates.
-    let customerId: string | undefined;
-    let existingUserId: string | undefined;
-
-    if (email) {
-      customerId = await getOrCreateStripeCustomerByEmail(email);
-      const userId = await getUserIdFromStripeCustomer(customerId);
-      if (userId) existingUserId = userId;
-    }
-
-    if (!customerId) {
-      return withCors(jsonResponse(400, { error: "Email is required for checkout" }), cors);
-    }
-
-    // Single-app trial flow ($1 setup + 7-day trial)
-    if (trial) {
-      const plan = findSubscriptionPlan(appKey!, tier);
-      const recurringPriceId = plan?.stripePriceIdMonthly;
-
-      if (!recurringPriceId) {
-        return withCors(jsonResponse(500, { error: `No price configured for ${appKey}` }), cors);
-      }
-
-      const successUrl = `${DASHBOARD_URL}/try/${appKey}?checkout=success`;
-      const cancelUrl = `${DASHBOARD_URL}/try/${appKey}?checkout=cancelled`;
-
-      // Check single-app trial eligibility if we have a known user
-      if (existingUserId) {
-        const eligibility = await checkTrialEligibility(existingUserId, appKey!, customerId);
-        if (!eligibility.eligible) {
-          return withCors(
-            jsonResponse(409, { error: `Not eligible for trial: ${eligibility.reason}` }),
-            cors
-          );
-        }
-      }
-
-      const session = await createPublicTrialCheckoutSession({
-        customerId,
-        recurringPriceId,
-        appKey: appKey!,
-        successUrl,
-        cancelUrl,
-      });
-
-      return withCors(jsonResponse(200, { url: session.url }), cors);
-    }
-
-    // Regular subscription checkout (no trial)
-    const plan = findSubscriptionPlan(appKey!, tier);
-    const priceId = plan
-      ? (billingPeriod === "yearly"
-          ? ("stripePriceIdYearly" in plan ? plan.stripePriceIdYearly : "")
-          : plan.stripePriceIdMonthly)
-      : "";
-
-    if (!priceId) {
-      return withCors(jsonResponse(400, { error: `No price configured for ${appKey}${tier ? `:${tier}` : ""}` }), cors);
-    }
-
-    const successUrl = `${DASHBOARD_URL}/?checkout=success`;
-    const cancelUrl = `${DASHBOARD_URL}/?checkout=cancelled`;
-
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: "subscription",
-      allow_promotion_codes: true,
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      metadata: { type: "subscription", app_key: appKey!, flow: "unauthenticated" },
-      subscription_data: { metadata: { app_key: appKey! } },
-    });
-
-    return withCors(jsonResponse(200, { url: session.url }), cors);
-  } catch (err) {
-    if (err instanceof HttpError) {
-      return withCors(jsonResponse(err.statusCode, { error: err.message }), cors);
-    }
-    console.error("[stripe-checkout-public] Unexpected error:", err);
-    return withCors(jsonResponse(500, { error: "Internal server error" }), cors);
-  }
+  // Per-app POST trial checkout has been retired with the unified Lite/Plus/Max
+  // model (Wave 1). The only first-party caller (the legacy /try/[appKey] page)
+  // now redirects to /apps?trial=true, where authenticated users start the
+  // unified trial via the in-app billing hook. Any remaining POST callers
+  // should hit GET ?plan=lite-trial or be migrated to the new path.
+  return withCors(
+    jsonResponse(410, {
+      error: "Per-app trial checkout has been retired. Start the unified Lite trial at the redirect URL below.",
+      redirectUrl: LITE_TRIAL_REDIRECT_URL,
+    }),
+    cors,
+  );
 }
 
 function withCors(response: HandlerResponse, cors: Record<string, string>): HandlerResponse {

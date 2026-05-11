@@ -157,7 +157,7 @@ const authenticatedFetch = async <T>(
 // ---------------------------------------------------------------------------
 
 export const BillingService = {
-  /** Get Keywords subscription status, recent invoices, and credit balance. */
+  /** Get the user's subscription status, recent invoices, and credit balance. */
   getSubscription: () =>
     authenticatedFetch<SubscriptionResponse>("stripe-subscriptions"),
 
