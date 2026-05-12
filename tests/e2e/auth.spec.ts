@@ -143,6 +143,13 @@ test.describe('Authentication Flow', () => {
   // row so the dashboard hero greeting ("Good morning, <First>") can render.
   // The JWT payload only carries {userId, email, role} — name is sourced from
   // public.profiles.full_name. See app/api/auth/session/route.ts (GET handler).
+  //
+  // NOTE: This test depends on the seeded user identified by getDefaultTestUser()
+  // having `profiles.full_name = 'Test User'`. The seed script
+  // (scripts/create-test-user.mjs) creates the auth user with
+  // user_metadata.full_name = 'Test User', and the `handle_new_user` trigger
+  // (see docs/04-Architecture/schema.sql) copies that into profiles.full_name.
+  // If the seed or trigger changes, update the expected value below.
   test('GET /api/auth/session returns user.name from profile', async ({ page, request }) => {
     const testUser = getDefaultTestUser();
 
@@ -159,7 +166,7 @@ test.describe('Authentication Flow', () => {
     expect(res.status()).toBe(200);
     const body = await res.json();
     expect(body.authenticated).toBe(true);
-    expect(body.user.name).toBeTruthy();
+    expect(body.user.name).toBe('Test User');
   });
 
   // Regression: dashboard hero hydrates the greeting with the first name from
@@ -168,7 +175,15 @@ test.describe('Authentication Flow', () => {
   test('Dashboard hero greets user by first name', async ({ page }) => {
     const testUser = getDefaultTestUser();
 
+    // Set up the session-response wait BEFORE login so we don't miss it
+    const sessionResponsePromise = page.waitForResponse(
+      (r) => r.url().includes('/api/auth/session') && r.ok(),
+      { timeout: 10000 }
+    );
+
     await login(page, testUser.email, testUser.password);
+    await page.waitForURL('/', { timeout: 10000 });
+    await sessionResponsePromise;
 
     const heading = page.locator('h1.page-title').first();
     await expect(heading).toContainText(/Good (morning|afternoon|evening), \w+/);
