@@ -493,10 +493,14 @@ async function provisionUnauthenticatedTrialUser(
         });
 
         if (!linkError && linkData?.properties?.action_link) {
-          // Replace Supabase's default redirect with our reset-password page
+          // Route through /auth/confirm — it server-side verifies the OTP
+          // (consumes the token, sets a session cookie), then redirects to
+          // /reset-password?verified=true where the form can render.
+          // Pointing directly at /reset-password would skip OTP verification
+          // and the page's "Invalid Link" fallback would fire.
           const resetUrl = new URL(linkData.properties.action_link);
           const token = resetUrl.searchParams.get("token") ?? resetUrl.hash;
-          const resetLink = `https://dashboard.bfeai.com/reset-password?token_hash=${encodeURIComponent(token)}&type=recovery`;
+          const resetLink = `https://dashboard.bfeai.com/auth/confirm?token_hash=${encodeURIComponent(token)}&type=recovery`;
 
           // Resolve display copy from the session's tier metadata (lite/plus/max).
           // Fallback chain: session.metadata.tier → legacy per-app appKey path →
