@@ -59,26 +59,42 @@ function corsHeaders(origin?: string): Record<string, string> {
 // ---------------------------------------------------------------------------
 
 const DASHBOARD_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://dashboard.bfeai.com";
-const TRIAL_SUCCESS_URL = `${DASHBOARD_URL}/?checkout=trial-success`;
+// Cold checkout completion lands on the marketing thank-you page (separate
+// domain, no auth middleware), where the user is told to check their email
+// to set a password. The dashboard root is auth-walled and would otherwise
+// bounce post-checkout traffic to /login.
+const TRIAL_SUCCESS_URL = "https://bfeai.com/thank-you/";
 const CANCEL_URL = `${DASHBOARD_URL}/?checkout=cancelled`;
 const LITE_TRIAL_REDIRECT_URL = `${DASHBOARD_URL}/apps?trial=true`;
 
 /**
- * Valid plan slugs for GET ?plan= parameter. Marketing CTAs hit this endpoint
- * directly (no login). The only supported new-user entry is the unified Lite
- * trial; the legacy per-app slugs below are treated as aliases for `lite-trial`
- * so existing campaign URLs still convert cold traffic into Stripe Checkout
- * while marketing copy migrates to the canonical slug.
+ * Trial tier configuration. Each tier is a $1 setup + 7-day trial that
+ * converts to the named monthly plan. The canonical plan slug is
+ * `<tier>-trial` (e.g. `lite-trial`, `plus-trial`, `max-trial`).
  */
-const VALID_PLANS = new Set(["lite-trial"]);
+type TrialTier = "lite" | "plus" | "max";
+
+const TRIAL_TIERS: Record<TrialTier, { priceEnv: string; displayName: string; monthlyPrice: number }> = {
+  lite: { priceEnv: "STRIPE_PRICE_LITE_MONTHLY", displayName: "Lite", monthlyPrice: 49 },
+  plus: { priceEnv: "STRIPE_PRICE_PLUS_MONTHLY", displayName: "Plus", monthlyPrice: 144 },
+  max:  { priceEnv: "STRIPE_PRICE_MAX_MONTHLY",  displayName: "Max",  monthlyPrice: 444 },
+};
+
+/**
+ * Valid plan slugs for GET ?plan= parameter. Marketing CTAs hit this endpoint
+ * directly (no login). Three canonical slugs, one per tier. Legacy slugs
+ * below alias to `lite-trial` so existing per-app campaign URLs still convert
+ * cold traffic into the entry-level Stripe Checkout.
+ */
+const VALID_PLANS = new Set<string>(["lite-trial", "plus-trial", "max-trial"]);
 
 const LEGACY_PLAN_SLUGS = new Set([
-  // Wave 1 per-app slugs (legacy, marketing CTAs still in wild)
+  // Wave 1 per-app slugs (legacy, marketing CTAs still in wild) — all → lite
   "keywords-trial",
   "labs-trial",
   "keywords",
   "labs",
-  // Wave 1.5 removed bundled trial slugs (still live on WordPress CTAs)
+  // Wave 1.5 removed bundled trial slugs (still live on WordPress CTAs) — all → lite
   "bundle",
   "bundle-trial",
   "dual-trial",
@@ -99,10 +115,11 @@ export const handler: Handler = async (event) => {
 
   // -------------------------------------------------------------------------
   // GET: Direct checkout links for WordPress CTA buttons.
-  // Canonical usage: ?plan=lite-trial — sends the visitor to Stripe Checkout
-  // for the unified $1/7-day Lite trial. Legacy slugs (bundle-trial,
-  // dual-trial, keywords-trial, labs-trial, keywords, labs, bundle) are
-  // aliased to lite-trial so existing campaign URLs still convert.
+  // Canonical usage: ?plan=lite-trial | plus-trial | max-trial — each is a
+  // $1/7-day trial that converts to the matching monthly plan
+  // ($49 / $144 / $444). Legacy slugs (bundle-trial, dual-trial,
+  // keywords-trial, labs-trial, keywords, labs, bundle) are aliased to
+  // lite-trial so existing campaign URLs still convert at the entry tier.
   // No login required — Stripe collects email, webhook provisions BFEAI account.
   // -------------------------------------------------------------------------
   if (event.httpMethod === "GET") {
@@ -195,45 +212,48 @@ async function handleGetCheckout(
 
 /**
  * Create a Stripe Checkout session for a given plan slug.
+ * Canonical slugs: `lite-trial`, `plus-trial`, `max-trial`. Each is a $1
+ * setup + 7-day trial that converts to its named monthly plan. The slug's
+ * tier is encoded in session metadata so the webhook can route correctly
+ * (welcome email copy, plan display name, etc.).
+ *
  * No customer is passed — Stripe collects email on the checkout page.
  * The webhook (handleCheckoutCompleted) provisions the BFEAI account
  * using metadata.flow: "unauthenticated".
  */
 async function createCheckoutSessionForPlan(plan: string): Promise<Stripe.Checkout.Session> {
-  switch (plan) {
-    // Unified Lite trial: $1 setup + 7-day trial on the universal-access Lite tier.
-    case "lite-trial": {
-      const priceId = getStripeEnv("STRIPE_PRICE_LITE_MONTHLY");
-
-      if (!priceId) {
-        throw new HttpError(500, "No price configured for Lite plan");
-      }
-
-      const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-        { price: priceId, quantity: 1 },
-      ];
-      if (TRIAL_SETUP_FEE_PRICE_ID) {
-        lineItems.push({ price: TRIAL_SETUP_FEE_PRICE_ID, quantity: 1 });
-      }
-
-      return stripe.checkout.sessions.create({
-        mode: "subscription",
-        allow_promotion_codes: true,
-        line_items: lineItems,
-        subscription_data: {
-          trial_period_days: 7,
-          metadata: { app_key: "any", tier: "lite" },
-        },
-        metadata: { type: "trial", app_key: "any", tier: "lite", flow: "unauthenticated" },
-        success_url: TRIAL_SUCCESS_URL,
-        cancel_url: CANCEL_URL,
-      });
-    }
-
-    default: {
-      throw new HttpError(400, `Unknown plan: ${plan}`);
-    }
+  const tierMatch = plan.match(/^(lite|plus|max)-trial$/);
+  if (!tierMatch) {
+    throw new HttpError(400, `Unknown plan: ${plan}`);
   }
+
+  const tier = tierMatch[1] as TrialTier;
+  const config = TRIAL_TIERS[tier];
+  const priceId = getStripeEnv(config.priceEnv);
+
+  if (!priceId) {
+    throw new HttpError(500, `No price configured for ${config.displayName} plan`);
+  }
+
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+    { price: priceId, quantity: 1 },
+  ];
+  if (TRIAL_SETUP_FEE_PRICE_ID) {
+    lineItems.push({ price: TRIAL_SETUP_FEE_PRICE_ID, quantity: 1 });
+  }
+
+  return stripe.checkout.sessions.create({
+    mode: "subscription",
+    allow_promotion_codes: true,
+    line_items: lineItems,
+    subscription_data: {
+      trial_period_days: 7,
+      metadata: { app_key: "any", tier },
+    },
+    metadata: { type: "trial", app_key: "any", tier, flow: "unauthenticated" },
+    success_url: TRIAL_SUCCESS_URL,
+    cancel_url: CANCEL_URL,
+  });
 }
 
 // ---------------------------------------------------------------------------

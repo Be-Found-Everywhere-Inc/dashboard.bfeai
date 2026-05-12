@@ -192,7 +192,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   // Unauthenticated trial flow: auto-provision account if needed
   if (!userId && session.metadata?.flow === "unauthenticated") {
-    userId = await provisionUnauthenticatedTrialUser(customerId);
+    userId = await provisionUnauthenticatedTrialUser(customerId, session);
     if (!userId) {
       console.error("[stripe-webhook] Failed to provision user for unauthenticated checkout, customer:", customerId);
       return;
@@ -314,7 +314,7 @@ async function handlePaymentLinkCheckout(
 
     // Auto-provision BFEAI account if user doesn't exist
     if (!userId) {
-      userId = await provisionUnauthenticatedTrialUser(customerId);
+      userId = await provisionUnauthenticatedTrialUser(customerId, session);
       if (!userId) {
         console.error("[stripe-webhook] Failed to provision user for Payment Link checkout, customer:", customerId);
         return null;
@@ -382,7 +382,7 @@ async function handlePaymentLinkCheckout(
   // -----------------------------------------------------------------------
   if (session.mode === "payment") {
     if (!userId) {
-      userId = await provisionUnauthenticatedTrialUser(customerId);
+      userId = await provisionUnauthenticatedTrialUser(customerId, session);
       if (!userId) {
         console.error("[stripe-webhook] Failed to provision user for Payment Link payment, customer:", customerId);
         return null;
@@ -411,7 +411,20 @@ const APP_DISPLAY_NAMES: Record<string, string> = {
  * Auto-provision a BFEAI account for a user who completed checkout without being logged in.
  * Returns the userId on success, null on failure.
  */
-async function provisionUnauthenticatedTrialUser(customerId: string): Promise<string | null> {
+// Tier display config for unified trial welcome emails. Mirrors the
+// TRIAL_TIERS table in stripe-checkout-public.ts. Kept local because Netlify
+// Functions are bundled separately and a shared import would complicate the
+// build for a 3-row lookup.
+const UNIFIED_TIER_DISPLAY: Record<string, { appName: string; monthlyPrice: number }> = {
+  lite: { appName: "BFEAI Lite", monthlyPrice: 49 },
+  plus: { appName: "BFEAI Plus", monthlyPrice: 144 },
+  max:  { appName: "BFEAI Max",  monthlyPrice: 444 },
+};
+
+async function provisionUnauthenticatedTrialUser(
+  customerId: string,
+  session: Stripe.Checkout.Session,
+): Promise<string | null> {
   try {
     // 1. Get email from Stripe customer
     const customer = await stripe.customers.retrieve(customerId);
@@ -485,16 +498,33 @@ async function provisionUnauthenticatedTrialUser(customerId: string): Promise<st
           const token = resetUrl.searchParams.get("token") ?? resetUrl.hash;
           const resetLink = `https://dashboard.bfeai.com/reset-password?token_hash=${encodeURIComponent(token)}&type=recovery`;
 
-          // Determine app name from customer metadata or default
-          const appKey = (customer.metadata as Record<string, string>)?.app_key ?? "keywords";
-          const appName = APP_DISPLAY_NAMES[appKey] ?? `BFEAI ${appKey}`;
-          const plan = findSubscriptionPlan(appKey);
+          // Resolve display copy from the session's tier metadata (lite/plus/max).
+          // Fallback chain: session.metadata.tier → legacy per-app appKey path →
+          // generic "BFEAI" copy.
+          const sessionTier = session.metadata?.tier;
+          const unifiedTier = sessionTier && UNIFIED_TIER_DISPLAY[sessionTier];
+
+          let appName: string;
+          let chargeAmount: string;
+
+          if (unifiedTier) {
+            appName = unifiedTier.appName;
+            chargeAmount = `$${unifiedTier.monthlyPrice}/mo`;
+          } else {
+            // Legacy single-app fallback (sessions still carrying app_key without tier)
+            const appKey = session.metadata?.app_key
+              ?? (customer.metadata as Record<string, string>)?.app_key
+              ?? "keywords";
+            appName = APP_DISPLAY_NAMES[appKey] ?? `BFEAI ${appKey}`;
+            const plan = findSubscriptionPlan(appKey);
+            chargeAmount = plan ? `$${plan.monthlyPrice}/mo` : "your subscription rate";
+          }
 
           await sendWelcomeEmail(email, {
             appName,
             resetLink,
             trialDays: 7,
-            chargeAmount: plan ? `$${plan.monthlyPrice}/mo` : "your subscription rate",
+            chargeAmount,
           });
         }
       } catch (err) {
