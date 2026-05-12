@@ -163,12 +163,17 @@ test.describe('Signup Flow', () => {
     await page.locator('#agreeToTerms').click();
     await page.click('button[type="submit"]');
 
-    // Should reach dashboard home, NOT /login?redirect=/
-    await page.waitForURL(/\/(?:\?.*)?$/, { timeout: 10000 });
+    // Pre-fix: hard-coded soft nav bounced to /login?redirect=/
+    // Post-fix: hard nav lands on the dashboard root.
+    // Match path strictly so the regex can't accidentally pass on the bounce URL.
+    await page.waitForURL((url) => url.pathname === '/' && !url.searchParams.has('redirect'), {
+      timeout: 10000,
+    });
+    expect(new URL(page.url()).pathname).toBe('/');
     expect(page.url()).not.toContain('/login');
 
-    // Verify session cookie is set (the whole point — proves the hard nav
-    // carried the SSO cookie, so middleware admitted us instead of bouncing).
+    // Sanity check: cookie was set (this is true on both pass and fail paths
+    // because the POST response sets it regardless; serves as smoke, not proof).
     const sessionCookie = await getSessionCookie(page);
     expect(sessionCookie).toBeDefined();
     expect(sessionCookie?.value).toBeTruthy();
