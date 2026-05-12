@@ -9,7 +9,6 @@ import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-  hasOffpageBetaAccess,
   CreditsProvider,
   OutOfCreditsModal,
   useCredits as useOutOfCreditsContext,
@@ -111,7 +110,7 @@ function DashboardContent({
         onLogout={handleSignOut}
         isLoggingOut={isLoggingOut}
         themeToggle={<ThemeToggle size="sm" syncToCookie compact />}
-        showOffpage={hasOffpageBetaAccess({ user_tier: user?.userTier })}
+        showOffpage={true}
       />
 
       {/* Main Content */}

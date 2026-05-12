@@ -5,19 +5,6 @@
  * Each app has its own standalone subscription.
  */
 
-// Inlined here (rather than imported from @bfeai/ui) because this module is
-// loaded by server-side / public routes (e.g. /try/[appKey]); importing the
-// @bfeai/ui barrel pulls in client-only React Context code and breaks the
-// production build. Sidebar consumers (client components) still use the
-// canonical export from @bfeai/ui — keep these two definitions in sync.
-const BETA_ELIGIBLE_TIERS = new Set(['beta_tester', 'founder', 'test_account']);
-function hasOffpageBetaAccess(user?: { user_tier?: string | null } | null): boolean {
-  if (!user || typeof user !== 'object') return false;
-  const tier = user.user_tier;
-  if (!tier) return false;
-  return BETA_ELIGIBLE_TIERS.has(tier);
-}
-
 export type AppKey = 'keywords' | 'labs' | 'offpage';
 
 export type AppStatus = 'active' | 'beta';
@@ -34,8 +21,8 @@ export interface AppConfig {
   features: string[];
   status: AppStatus;
   /**
-   * If true, this app is only visible to users for whom the gate function
-   * (applied in getActiveApps / isAppIncludedInPlan) returns true.
+   * If true, this app is hidden from getActiveApps. Reserved for future
+   * pre-launch apps; no app currently uses this flag.
    */
   betaOnly?: boolean;
 }
@@ -96,25 +83,21 @@ export const APP_CATALOG: Record<AppKey, AppConfig> = {
       'Browser session automation',
       'Credit-based usage tracking',
     ],
-    status: 'beta',
-    betaOnly: true,
+    status: 'active',
   },
 };
 
 export const APP_ORDER: AppKey[] = ['keywords', 'labs', 'offpage'];
 
 /**
- * Filter apps based on user access.
- * Beta-only apps require the appropriate access gate.
+ * Filter apps based on visibility. `betaOnly` apps are hidden; no app
+ * currently uses that flag (the `user` arg is retained for backward
+ * compatibility with callers that still pass it).
  */
-export const getActiveApps = (user?: { user_tier?: string | null } | null): AppConfig[] => {
+export const getActiveApps = (_user?: { user_tier?: string | null } | null): AppConfig[] => {
   return APP_ORDER
     .map(key => APP_CATALOG[key])
-    .filter(app => {
-      if (!app.betaOnly) return true;
-      if (app.key === 'offpage') return hasOffpageBetaAccess(user);
-      return false;
-    });
+    .filter(app => !app.betaOnly);
 };
 
 /** Returns the full catalog regardless of user access. Use for admin/internal views only. */
@@ -128,15 +111,12 @@ export const getAppByKey = (key: AppKey): AppConfig | undefined => {
 
 /**
  * Check if an app is included in the user's current plan.
- * - keywords/labs: standalone, always "included" (user just needs to subscribe).
- * - offpage: beta-only, included if user has beta access.
+ * All shipped apps are universally accessible — usage gates on credits.
  */
 export const isAppIncludedInPlan = (
   appKey: AppKey,
   _planId?: string | null,
-  user?: { user_tier?: string | null } | null,
+  _user?: { user_tier?: string | null } | null,
 ): boolean => {
-  if (appKey === 'keywords' || appKey === 'labs') return true;
-  if (appKey === 'offpage') return hasOffpageBetaAccess(user);
-  return false;
+  return appKey === 'keywords' || appKey === 'labs' || appKey === 'offpage';
 };
