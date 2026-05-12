@@ -34,6 +34,7 @@ import { shouldSendEmail } from "./utils/email-throttle";
 import {
   renderAutoTopUpRequiresAuthEmail,
   renderAutoTopUpRefundProcessedEmail,
+  renderPaymentFailedAdminNotificationEmail,
 } from "./utils/email-templates";
 import type Stripe from "stripe";
 
@@ -753,15 +754,93 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 
   const userId = await getUserIdFromStripeCustomer(customerId);
   const subscriptionRef = invoice.parent?.subscription_details?.subscription;
+  const subscriptionId = typeof subscriptionRef === "string"
+    ? subscriptionRef
+    : subscriptionRef?.id ?? null;
 
   console.error(
     `[stripe-webhook] Payment failed for user ${userId ?? "unknown"}, ` +
-    `invoice ${invoice.id}, subscription ${subscriptionRef ?? "none"}, ` +
-    `attempt ${invoice.attempt_count}`
+    `invoice ${invoice.id}, subscription ${subscriptionId ?? "none"}, ` +
+    `attempt ${invoice.attempt_count}, billing_reason ${invoice.billing_reason}`
   );
 
   // Subscription status (past_due) will be synced via customer.subscription.updated event.
-  // This handler provides early visibility for logging/monitoring.
+
+  // Admin notification: a paying customer whose card stops working is often
+  // silently cancelling. Email the billing-ops contact once on the first
+  // failed attempt of a renewal (subscription_cycle) so a human can reach out
+  // for feedback before Stripe's dunning gives up. Attempt 1 only — retries
+  // don't re-fire. Per-trial setup-fee invoices (billing_reason
+  // === 'subscription_create') are skipped: those customers never paid us.
+  if (invoice.attempt_count !== 1 || invoice.billing_reason !== "subscription_cycle") {
+    return;
+  }
+
+  const notifyEmail = process.env.PAYMENT_FAILED_NOTIFY_EMAIL ?? "ryan@bfeai.com";
+
+  // Fetch BFEAI profile + app_subscription for richer context. Both queries
+  // tolerate missing rows so the email still sends for orphan Stripe customers.
+  let profileEmail: string | null = invoice.customer_email ?? null;
+  let profileName: string | null = null;
+  if (userId) {
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("email, full_name")
+      .eq("id", userId)
+      .maybeSingle();
+    profileEmail = profile?.email ?? profileEmail;
+    profileName = profile?.full_name ?? null;
+  }
+
+  let appName: string | null = null;
+  if (subscriptionId) {
+    const { data: appSub } = await supabaseAdmin
+      .from("app_subscriptions")
+      .select("app_key")
+      .eq("stripe_subscription_id", subscriptionId)
+      .maybeSingle();
+    if (appSub?.app_key) {
+      const appNames: Record<string, string> = {
+        keywords: "BFEAI Keywords",
+        labs: "BFEAI LABS",
+        sma: "BFEAI Social Media Agent",
+        offpage: "BFEAI OffPage",
+        leads: "BFEAI Leads",
+      };
+      appName = appNames[appSub.app_key] ?? `BFEAI ${appSub.app_key}`;
+    }
+  }
+
+  const nextRetryDate = invoice.next_payment_attempt
+    ? new Date(invoice.next_payment_attempt * 1000).toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
+
+  const { subject, html, text } = renderPaymentFailedAdminNotificationEmail({
+    customerEmail: profileEmail,
+    customerName: profileName,
+    customerStripeId: customerId,
+    bfeaiUserId: userId,
+    subscriptionId,
+    appName,
+    amountDueCents: invoice.amount_due,
+    currency: invoice.currency,
+    invoiceId: invoice.id ?? "",
+    hostedInvoiceUrl: invoice.hosted_invoice_url ?? null,
+    nextRetryDate,
+    billingReason: invoice.billing_reason ?? "unknown",
+  });
+
+  await sendEmail({ to: notifyEmail, subject, html, text });
+
+  console.log(
+    `[stripe-webhook] Card-declined admin notification sent to ${notifyEmail} ` +
+    `for invoice ${invoice.id}, customer ${customerId}`
+  );
 }
 
 async function handleTrialWillEnd(subscription: Stripe.Subscription) {

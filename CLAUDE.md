@@ -341,7 +341,7 @@ Toggle via `STRIPE_TEST_MODE` env var. When `true`, `getStripeEnv()` (in `lib/st
 |-------|---------|
 | `checkout.session.completed` | New subscription or top-up credit allocation |
 | `invoice.payment_succeeded` | Monthly credit allocation (respects 3x cap) |
-| `invoice.payment_failed` | Log payment failure |
+| `invoice.payment_failed` | Log failure; on first attempt of a renewal (`billing_reason=subscription_cycle`), email billing-ops (`PAYMENT_FAILED_NOTIFY_EMAIL`, default `ryan@bfeai.com`) so a human can ask for feedback before Stripe's dunning gives up |
 | `invoice.payment_action_required` | Log SCA/3DS needed |
 | `customer.subscription.updated` | Sync status/period to app_subscriptions |
 | `customer.subscription.deleted` | Sync final cancellation |
@@ -466,6 +466,9 @@ AUTO_TOPUP_BETA_USERS=
 
 # Email
 RESEND_API_KEY=
+
+# Card-declined ops notification (default: ryan@bfeai.com if unset)
+PAYMENT_FAILED_NOTIFY_EMAIL=
 ```
 
 ### Stripe Test Mode (Optional)

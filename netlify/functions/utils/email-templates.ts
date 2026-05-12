@@ -540,6 +540,90 @@ You'll get this email at most once per 24 hours.`;
 }
 
 /**
+ * Render the admin notification sent when a paying subscriber's card is
+ * declined on a renewal (or post-trial first cycle) charge. Triggered from
+ * `handleInvoicePaymentFailed` on `attempt_count === 1` with
+ * `billing_reason === 'subscription_cycle'`. The hypothesis: a paying customer
+ * whose card stops working is often silently cancelling — we want a human to
+ * reach out for feedback before Stripe's dunning gives up.
+ */
+interface PaymentFailedAdminNotificationData {
+  customerEmail: string | null;
+  customerName: string | null;
+  customerStripeId: string;
+  bfeaiUserId: string | null;
+  subscriptionId: string | null;
+  appName: string | null;
+  amountDueCents: number;
+  currency: string;
+  invoiceId: string;
+  hostedInvoiceUrl: string | null;
+  nextRetryDate: string | null;
+  billingReason: string;
+}
+
+export function renderPaymentFailedAdminNotificationEmail(
+  params: PaymentFailedAdminNotificationData,
+): { subject: string; html: string; text: string } {
+  const priceFormatted = `$${(params.amountDueCents / 100).toFixed(2)} ${params.currency.toUpperCase()}`;
+  const safeEmail = params.customerEmail ? stripControl(params.customerEmail) : params.customerStripeId;
+  const safeName = params.customerName ? stripControl(params.customerName) : "—";
+  const safeAppName = params.appName ? stripControl(params.appName) : "subscription";
+  const customerUrl = `https://dashboard.stripe.com/customers/${params.customerStripeId}`;
+  const subscriptionUrl = params.subscriptionId
+    ? `https://dashboard.stripe.com/subscriptions/${params.subscriptionId}`
+    : null;
+  const invoiceLinkTarget = params.hostedInvoiceUrl
+    ?? `https://dashboard.stripe.com/invoices/${params.invoiceId}`;
+
+  const subject = `[BFEAI] Card declined — ${safeEmail} (${safeAppName}, ${priceFormatted})`;
+
+  const html = `<!doctype html>
+<html><body style="font-family:system-ui,-apple-system,sans-serif;color:#111;line-height:1.55;max-width:600px;margin:0 auto;padding:24px">
+  <p><strong>A paying customer's card was just declined.</strong></p>
+  <p>This is often a silent cancellation signal — they let the card expire or stopped funding it. Worth a personal note asking for feedback before Stripe's dunning gives up (~3 weeks).</p>
+
+  <table cellpadding="0" cellspacing="0" style="background:#f8f9fc;border:1px solid #e5e7eb;border-radius:8px;padding:16px 20px;margin:16px 0;width:100%">
+    <tr><td style="padding:6px 0;color:#666;font-size:14px">Customer email:</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right">${escapeHtml(params.customerEmail ?? "—")}</td></tr>
+    <tr><td style="padding:6px 0;color:#666;font-size:14px">Customer name:</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right">${escapeHtml(params.customerName ?? "—")}</td></tr>
+    <tr><td style="padding:6px 0;color:#666;font-size:14px">App / plan:</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right">${escapeHtml(params.appName ?? "—")}</td></tr>
+    <tr><td style="padding:6px 0;color:#666;font-size:14px">Amount:</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right">${escapeHtml(priceFormatted)}</td></tr>
+    <tr><td style="padding:6px 0;color:#666;font-size:14px">Billing reason:</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right">${escapeHtml(params.billingReason)}</td></tr>
+    <tr><td style="padding:6px 0;color:#666;font-size:14px">Next Stripe retry:</td><td style="padding:6px 0;font-size:14px;font-weight:600;text-align:right">${escapeHtml(params.nextRetryDate ?? "no further retries")}</td></tr>
+    <tr><td style="padding:6px 0;color:#666;font-size:14px">BFEAI user ID:</td><td style="padding:6px 0;font-size:13px;font-family:monospace;text-align:right">${escapeHtml(params.bfeaiUserId ?? "—")}</td></tr>
+  </table>
+
+  <p style="margin-bottom:6px"><strong>Open in Stripe:</strong></p>
+  <ul style="margin-top:0">
+    <li><a href="${escapeHtml(customerUrl)}" style="color:#533577">Customer</a></li>
+    ${subscriptionUrl ? `<li><a href="${escapeHtml(subscriptionUrl)}" style="color:#533577">Subscription</a></li>` : ""}
+    <li><a href="${escapeHtml(invoiceLinkTarget)}" style="color:#533577">Failed invoice</a></li>
+  </ul>
+
+  <p style="font-size:13px;color:#666;margin-top:24px">Sent automatically from <code>stripe-webhook.ts</code> on the first failed renewal attempt only — retries don't re-fire this email.</p>
+</body></html>`;
+
+  const text = `A paying customer's card was just declined.
+
+Often a silent cancellation signal — worth reaching out for feedback before Stripe's dunning gives up.
+
+Customer email: ${params.customerEmail ?? "—"}
+Customer name:  ${params.customerName ?? "—"}
+App / plan:     ${params.appName ?? "—"}
+Amount:         ${priceFormatted}
+Billing reason: ${params.billingReason}
+Next retry:     ${params.nextRetryDate ?? "no further retries"}
+BFEAI user ID:  ${params.bfeaiUserId ?? "—"}
+
+Customer:     ${customerUrl}${subscriptionUrl ? `\nSubscription: ${subscriptionUrl}` : ""}
+Invoice:      ${invoiceLinkTarget}
+
+Sent automatically on the first failed renewal attempt only.`;
+
+  return { subject, html, text };
+}
+
+/**
  * Render the "refund processed" admin notification. Sent when a charge.refunded
  * webhook fires for a top-up purchase and the clawback succeeds. Admin-facing,
  * not user-facing; routed to the admin email address.
