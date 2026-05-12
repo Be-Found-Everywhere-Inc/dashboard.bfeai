@@ -321,7 +321,7 @@ export function renderStandardWelcomeEmail(
               </table>
 
               <p style="margin:24px 0 0;color:#666;font-size:14px;line-height:1.6;">
-                Questions? Reply to this email and we'll get back to you within one business day.
+                Questions? Email <a href="mailto:support@bfeai.com" style="color:#533577;text-decoration:underline;">support@bfeai.com</a> and we'll get back to you within one business day.
               </p>
             </td>
           </tr>
@@ -355,7 +355,7 @@ Your account is ready. From your dashboard you can:
 
 Open your dashboard: ${safeDashboardUrl}
 
-Questions? Reply to this email and we'll get back to you within one business day.
+Questions? Email support@bfeai.com and we'll get back to you within one business day.
 
 — The BFEAI Team`;
 

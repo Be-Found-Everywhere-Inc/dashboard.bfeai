@@ -72,11 +72,15 @@ const LITE_TRIAL_REDIRECT_URL = `${DASHBOARD_URL}/apps?trial=true`;
 const VALID_PLANS = new Set(["lite-trial"]);
 
 const LEGACY_PLAN_SLUGS = new Set([
+  // Wave 1 per-app slugs (legacy, marketing CTAs still in wild)
   "keywords-trial",
   "labs-trial",
   "keywords",
   "labs",
+  // Wave 1.5 removed bundled trial slugs (still live on WordPress CTAs)
   "bundle",
+  "bundle-trial",
+  "dual-trial",
 ]);
 
 // ---------------------------------------------------------------------------
