@@ -42,22 +42,29 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Optionally fetch fresh user data from database
-      // For now, return data from JWT payload
+      // Fetch the user's display name from the profile row so callers (eg
+      // the dashboard hero greeting) can render personalized copy. JWT
+      // payload does not encode name; profile is the source of truth.
+      let name: string | null = null;
+      try {
+        const { createAdminClient } = await import('@/lib/supabase/admin');
+        const supabase = createAdminClient();
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', payload.userId)
+          .maybeSingle();
+        name = profile?.full_name ?? null;
+      } catch (err) {
+        console.warn('[session] profile lookup failed:', err);
+      }
+
       const userData = {
         userId: payload.userId,
         email: payload.email,
         role: payload.role || 'user',
+        name,
       };
-
-      // If you want to fetch fresh data from Supabase:
-      // const { createClient } = await import('@/lib/supabase/server');
-      // const supabase = await createClient();
-      // const { data: profile } = await supabase
-      //   .from('profiles')
-      //   .select('*')
-      //   .eq('id', payload.userId)
-      //   .single();
 
       return NextResponse.json({
         authenticated: true,

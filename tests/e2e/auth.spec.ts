@@ -138,4 +138,39 @@ test.describe('Authentication Flow', () => {
       timeout: 3000,
     });
   });
+
+  // Regression: GET /api/auth/session must return user.name from the profile
+  // row so the dashboard hero greeting ("Good morning, <First>") can render.
+  // The JWT payload only carries {userId, email, role} — name is sourced from
+  // public.profiles.full_name. See app/api/auth/session/route.ts (GET handler).
+  test('GET /api/auth/session returns user.name from profile', async ({ page, request }) => {
+    const testUser = getDefaultTestUser();
+
+    // Log in via the same flow as the other tests so cookies match production
+    await login(page, testUser.email, testUser.password);
+
+    // Pull session via API using the cookies the browser just got
+    const sessionCookie = await getSessionCookie(page);
+    expect(sessionCookie?.value).toBeTruthy();
+
+    const res = await request.get('/api/auth/session', {
+      headers: { Cookie: `bfeai_session=${sessionCookie!.value}` },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.authenticated).toBe(true);
+    expect(body.user.name).toBeTruthy();
+  });
+
+  // Regression: dashboard hero hydrates the greeting with the first name from
+  // /api/auth/session. If user.name is null/missing, only "Good morning" (no
+  // comma + first name) is rendered — which is what we are fixing.
+  test('Dashboard hero greets user by first name', async ({ page }) => {
+    const testUser = getDefaultTestUser();
+
+    await login(page, testUser.email, testUser.password);
+
+    const heading = page.locator('h1.page-title').first();
+    await expect(heading).toContainText(/Good (morning|afternoon|evening), \w+/);
+  });
 });
