@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 
 import { Button, Input, Label, Checkbox } from '@bfeai/ui';
 import { useRecaptcha, RecaptchaScript } from '@/components/recaptcha';
+import { trackSignup } from '@/components/analytics/events';
 
 const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || null;
 
@@ -182,9 +183,16 @@ export default function SignupPageClient() {
 
       toast.success('Account created successfully! Redirecting...');
 
-      // Redirect to home page or dashboard (user is automatically logged in)
+      // Fire analytics conversion event. If consent is rejected or pixels
+      // aren't loaded, this is a harmless dataLayer push that no one reads.
+      trackSignup({
+        method: 'email',
+        userId: result.user?.id,
+      });
+
+      // Redirect to dashboard home — gives new users the overview, not the profile-edit page.
       setTimeout(() => {
-        router.push('/profile');
+        router.push('/');
       }, 1000);
     } catch (error) {
       console.error('Signup error:', error);
@@ -236,7 +244,7 @@ export default function SignupPageClient() {
             <Link href="/" className="inline-flex items-center gap-3 group" aria-label="BFEAI home">
               <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shadow-lg transition-all duration-normal group-hover:bg-white/15 group-hover:scale-105">
                 <Image
-                  src="/brand/BFE_Logo_TRN_BG.png"
+                  src="/brand/BFE_Icon_TRN.png"
                   alt="BFEAI"
                   width={36}
                   height={36}
@@ -333,7 +341,7 @@ export default function SignupPageClient() {
                   variant="outline"
                   disabled={isLoading}
                   onClick={() => {
-                    window.location.href = '/oauth-start?provider=google&redirect=/profile';
+                    window.location.href = '/oauth-start?provider=google&redirect=/';
                   }}
                   className="btn-press h-11 gap-2 border-border text-foreground hover:bg-brand-purple/5 hover:border-brand-purple/40 transition-all duration-normal"
                 >
@@ -351,7 +359,7 @@ export default function SignupPageClient() {
                   variant="outline"
                   disabled={isLoading}
                   onClick={() => {
-                    window.location.href = '/oauth-start?provider=github&redirect=/profile';
+                    window.location.href = '/oauth-start?provider=github&redirect=/';
                   }}
                   className="btn-press h-11 gap-2 border-border text-foreground hover:bg-brand-purple/5 hover:border-brand-purple/40 transition-all duration-normal"
                 >

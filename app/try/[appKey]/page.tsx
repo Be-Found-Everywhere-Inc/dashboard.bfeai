@@ -1,29 +1,14 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { APP_CATALOG, type AppKey } from "@/config/apps";
-import TryPage from "./TryPage";
+import { redirect } from "next/navigation";
 
-interface Props {
-  params: Promise<{ appKey: string }>;
-}
-
-const VALID_KEYS = new Set<string>(Object.keys(APP_CATALOG));
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { appKey } = await params;
-  if (!VALID_KEYS.has(appKey)) return { title: "Not Found" };
-
-  const app = APP_CATALOG[appKey as AppKey];
-  return {
-    title: `Try ${app.name} — $1 for 7 days`,
-    description: app.longDescription,
-  };
-}
-
-export default async function TryAppPage({ params }: Props) {
-  const { appKey } = await params;
-  if (!VALID_KEYS.has(appKey)) notFound();
-
-  const app = APP_CATALOG[appKey as AppKey];
-  return <TryPage app={app} />;
+/**
+ * Legacy per-app trial landing.
+ *
+ * The unified Lite/Plus/Max model replaces per-app subscriptions, so any paid-ad
+ * traffic that still points at `/try/keywords`, `/try/labs`, `/try/offpage`, etc.
+ * is funneled into the universal $1 Lite trial deep link on `/apps`. The dynamic
+ * `[appKey]` segment is intentionally ignored — keeping the URL pattern alive
+ * means existing campaign URLs do not 404 while the marketing surface migrates.
+ */
+export default function LegacyTryAppRedirect() {
+  redirect("/apps?trial=true");
 }

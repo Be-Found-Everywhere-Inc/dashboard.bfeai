@@ -213,6 +213,17 @@ export async function POST(request: NextRequest) {
       { email: userEmail, has_company: !!company, age_confirmed: true, age_confirmed_at: new Date().toISOString() }
     );
 
+    // Welcome email — fire-and-forget so a Resend hiccup never blocks signup.
+    try {
+      const { sendStandardWelcomeEmail } = await import('@/lib/email/welcome');
+      void sendStandardWelcomeEmail({
+        to: userEmail,
+        firstName: fullName.split(' ')[0],
+      });
+    } catch (err) {
+      console.warn('[signup] Failed to dispatch welcome email:', err);
+    }
+
     // Auto-login: Create JWT token and set cookie
     const token = JWTService.generateSSOToken(userId, userEmail, 'user');
 

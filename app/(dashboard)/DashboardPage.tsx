@@ -2,20 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Search, FlaskConical, ArrowUpRight, ExternalLink, CreditCard, Coins, Sparkles, Zap, Activity, Megaphone } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button } from "@bfeai/ui";
+import { Search, FlaskConical, ExternalLink, CreditCard, Coins, Megaphone } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@bfeai/ui";
 import { useBilling } from "@/hooks/useBilling";
-import { APP_CATALOG, type AppKey } from "@/config/apps";
+import { APP_CATALOG } from "@/config/apps";
 import { CreditBalanceCard } from "@/components/billing/CreditBalanceCard";
-import { CancellationDialog } from "@/components/billing/CancellationDialog";
-import { AppUpsellModal } from "@/components/billing/AppUpsellModal";
+import { trackSignup, trackSubscribe, trackCancelCheckout } from "@/components/analytics/events";
 import { toast } from "@bfeai/ui";
 import { format } from "date-fns";
-
-const APP_ICONS: Record<string, React.ElementType> = {
-  keywords: Search,
-  labs: FlaskConical,
-};
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -27,7 +21,6 @@ function getGreeting(): string {
 export function DashboardPage() {
   const {
     subscriptions,
-    getSubscription,
     credits,
     recentInvoices,
     isLoading,
@@ -37,8 +30,6 @@ export function DashboardPage() {
   } = useBilling();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [cancellationDialogOpen, setCancellationDialogOpen] = useState(false);
-  const [upsellApp, setUpsellApp] = useState<AppKey | null>(null);
   const [userName, setUserName] = useState<string>('');
 
   // Fetch user name for greeting
@@ -53,11 +44,12 @@ export function DashboardPage() {
       .catch(() => {});
   }, []);
 
-  // Handle checkout success redirect
+  // Handle checkout return states
   const checkoutStatus = searchParams.get("checkout");
   useEffect(() => {
     if (checkoutStatus === "success" || checkoutStatus === "trial-success") {
       void refetch();
+      trackSubscribe({ isTrial: checkoutStatus === "trial-success" });
       if (checkoutStatus === "trial-success") {
         toast({
           title: "Trial started!",
@@ -65,12 +57,26 @@ export function DashboardPage() {
         });
       }
       router.replace("/", { scroll: false });
+    } else if (checkoutStatus === "cancelled") {
+      trackCancelCheckout();
+      toast({
+        title: "Checkout cancelled",
+        description: "No worries — nothing was charged. You can start your trial whenever you're ready.",
+      });
+      router.replace("/", { scroll: false });
     }
   }, [checkoutStatus, refetch, router]);
 
-  const handleViewPlans = () => {
-    router.push('/apps');
-  };
+  // First-time OAuth signup conversion event — tagged server-side by the
+  // OAuth callback as `?signup=1&method=<provider>`. Fire once and strip.
+  const signupFlag = searchParams.get("signup");
+  const signupMethod = searchParams.get("method");
+  useEffect(() => {
+    if (signupFlag === "1" && (signupMethod === "google" || signupMethod === "github")) {
+      trackSignup({ method: signupMethod });
+      router.replace("/", { scroll: false });
+    }
+  }, [signupFlag, signupMethod, router]);
 
   const handleManageBilling = async () => {
     try {
@@ -87,17 +93,6 @@ export function DashboardPage() {
 
   const formatCurrency = (value: number, currency = "USD") =>
     new Intl.NumberFormat("en-US", { style: "currency", currency }).format(value);
-
-  const getAppStatus = (appKey: string): 'active' | 'trialing' | 'none' => {
-    const sub = getSubscription(appKey);
-    if (sub) {
-      if (sub.status === 'active') return 'active';
-      if (sub.status === 'trialing') return 'trialing';
-    }
-    return 'none';
-  };
-
-  const activeAppCount = subscriptions.filter(s => s.status === 'active' || s.status === 'trialing').length;
 
   if (isLoading && subscriptions.length === 0) {
     return (
@@ -134,11 +129,6 @@ export function DashboardPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-sm">
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5">
-              <Activity className="h-4 w-4 text-brand-indigo" />
-              <span className="text-muted-foreground">Active apps</span>
-              <span className="font-bold text-foreground">{activeAppCount}</span>
-            </div>
             {credits && (
               <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5">
                 <Coins className="h-4 w-4 text-brand-teal" />
@@ -150,133 +140,20 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {/* Announcements */}
+      {/* Welcome / What's new */}
       <Card className="animate-fade-in-up mb-6 border-brand-indigo/10 bg-gradient-to-r from-brand-indigo/5 via-background to-brand-purple/5" style={{ animationDelay: '100ms' }}>
         <CardHeader className="flex flex-row items-center gap-3 pb-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-indigo/10 text-brand-indigo">
             <Megaphone className="h-5 w-5" />
           </div>
-          <CardTitle className="text-base font-heading">Announcements</CardTitle>
+          <CardTitle className="text-base font-heading">Welcome to BFEAI</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Welcome to Be Found Everywhere, or BEEFY! We&apos;re actively building new features to help you Be Found Everywhere! Stay tuned for updates, new apps, integrations, and more!
+            AI is changing how customers find businesses. BFEAI gives you the tools to be found everywhere AI searches — from keyword research to brand visibility across ChatGPT, Gemini, Perplexity, and more. Use the Quick Access tiles below to launch any app.
           </p>
         </CardContent>
       </Card>
-
-      {/* App Subscriptions */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {(['keywords', 'labs'] as const).map((appKey, i) => {
-          const app = APP_CATALOG[appKey];
-          const status = getAppStatus(appKey);
-          const IconComponent = APP_ICONS[appKey] || Sparkles;
-
-          return (
-            <Card
-              key={appKey}
-              className={`animate-fade-in-up card-hover-lift relative overflow-hidden cursor-pointer ${
-                status !== 'none'
-                  ? 'border-brand-indigo/20 shadow-sm'
-                  : 'border-border'
-              }`}
-              style={{ animationDelay: `${(i + 1) * 100 + 100}ms` }}
-              onClick={(e) => {
-                // Don't open modal if clicking a button or link
-                if ((e.target as HTMLElement).closest('button, a')) return;
-                setUpsellApp(appKey);
-              }}
-            >
-              <div
-                className={`absolute inset-0 bg-gradient-to-br ${app.gradient} opacity-[0.04]`}
-                aria-hidden
-              />
-              <div className="relative">
-                <CardHeader className="flex flex-row items-start gap-3">
-                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${app.gradient} text-white shadow-lg`}>
-                    <IconComponent className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <CardDescription className="text-xs">{app.description}</CardDescription>
-                    <CardTitle className="text-lg font-heading">{app.name}</CardTitle>
-                  </div>
-                  {status === 'active' && (
-                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 shrink-0">Active</Badge>
-                  )}
-                  {status === 'trialing' && (
-                    <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 shrink-0">
-                      <Zap className="mr-1 h-3 w-3" />
-                      Trial
-                    </Badge>
-                  )}
-                </CardHeader>
-
-                <CardContent>
-                  {status !== 'none' ? (() => {
-                    const appSub = getSubscription(appKey);
-                    return (
-                    <div className="space-y-3">
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" className="gap-1.5 btn-press" asChild>
-                          <a href={app.url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-3.5 w-3.5" />
-                            Launch {app.shortName}
-                          </a>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="btn-press"
-                          onClick={() => void handleManageBilling()}
-                          disabled={portalSessionLoading}
-                        >
-                          {portalSessionLoading ? "Opening..." : "Manage"}
-                        </Button>
-                        {appSub && appSub.stripeManaged && !appSub.cancelAtPeriodEnd && appSub.status === "active" && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-red-600 hover:text-red-700 btn-press"
-                            onClick={() => setCancellationDialogOpen(true)}
-                          >
-                            Cancel
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    );
-                  })() : (
-                    <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Included in any Lite, Plus, or Max plan.
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          className="gap-1.5 btn-press"
-                          onClick={handleViewPlans}
-                        >
-                          View plans
-                          <ArrowUpRight className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-muted-foreground hover:text-foreground btn-press"
-                          onClick={() => setUpsellApp(appKey)}
-                        >
-                          Learn More
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-
 
       {/* Credits + Recent payments */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
@@ -295,7 +172,16 @@ export function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {recentInvoices.length === 0 && (
-              <p className="text-sm text-muted-foreground">No invoices yet.</p>
+              <div className="rounded-xl border border-dashed border-border p-4 text-center">
+                <p className="text-sm text-muted-foreground">No invoices yet.</p>
+                <button
+                  type="button"
+                  onClick={() => router.push("/apps")}
+                  className="mt-2 text-xs font-semibold text-brand-indigo hover:text-brand-indigo/80 transition-colors"
+                >
+                  View plans →
+                </button>
+              </div>
             )}
             {recentInvoices.slice(0, 4).map((invoice) => (
               <button
@@ -387,37 +273,6 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <CancellationDialog
-        open={cancellationDialogOpen}
-        onOpenChange={setCancellationDialogOpen}
-        subscription={(() => {
-          const cancelSub = subscriptions.find((s) => s.status === 'active' && !s.cancelAtPeriodEnd);
-          return cancelSub
-            ? {
-                id: cancelSub.id,
-                planName: cancelSub.appKey === 'labs' ? 'LABS' : 'Keywords',
-                amount: cancelSub.amount,
-                currency: cancelSub.currency,
-                nextBillingDate: cancelSub.nextBillingDate,
-              }
-            : null;
-        })()}
-      />
-
-      {upsellApp && (
-        <AppUpsellModal
-          appKey={upsellApp}
-          open={Boolean(upsellApp)}
-          onOpenChange={(open) => !open && setUpsellApp(null)}
-          onViewPlans={() => {
-            setUpsellApp(null);
-            handleViewPlans();
-          }}
-          currentStatus={getAppStatus(upsellApp) === 'none' ? 'available' : getAppStatus(upsellApp) === 'trialing' ? 'trialing' : 'subscribed'}
-          appUrl={APP_CATALOG[upsellApp].url}
-          hasAnySub={subscriptions.some(s => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due')}
-        />
-      )}
     </>
   );
 }

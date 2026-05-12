@@ -185,7 +185,6 @@ dashboard.bfeai/
 │   ├── layout/
 │   │   └── DashboardShell.tsx          # Sidebar nav + main layout (uses @bfeai/ui AppSidebar) (logo wrapped in <Link>)
 │   ├── billing/
-│   │   ├── AppSubscriptionCard.tsx     # Current subscription display
 │   │   ├── CreditBalanceCard.tsx       # Credit balance (dual pool)
 │   │   ├── CreditHistoryTable.tsx      # Credit transaction history
 │   │   ├── TopUpPacksGrid.tsx          # Credit top-up purchase grid

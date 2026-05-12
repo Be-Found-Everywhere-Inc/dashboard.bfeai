@@ -2,7 +2,7 @@ import { Resend } from "resend";
 import { buildTrialReminderHtml, buildTrialReminderText, buildWelcomeEmailHtml, buildWelcomeEmailText } from "./email-templates";
 
 const resendApiKey = process.env.RESEND_API_KEY;
-const fromEmail = process.env.RESEND_FROM_EMAIL ?? "BFEAI <noreply@bfeai.com>";
+const fromEmail = process.env.RESEND_FROM_EMAIL ?? '"Bill from BFEAI" <bill@noreply.bfeai.com>';
 
 interface SendEmailParams {
   to: string;

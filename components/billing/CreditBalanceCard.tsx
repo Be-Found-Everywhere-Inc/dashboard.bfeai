@@ -1,4 +1,5 @@
-import { Coins, TrendingUp, ArrowRight, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { Coins, TrendingUp, ArrowRight, Sparkles, Zap } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -52,10 +53,19 @@ export const CreditBalanceCard = ({
             <Coins className="h-5 w-5" />
           </div>
         </CardHeader>
-        <CardContent className="relative">
-          <p className="text-sm text-muted-foreground">
-            Subscribe to an app to start earning credits.
-          </p>
+        <CardContent className="relative space-y-4">
+          <div>
+            <p className="text-4xl font-heading font-extrabold text-foreground tracking-tight">0</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Start a $1 7-day trial to unlock every BFEAI app and get 100 trial credits.
+            </p>
+          </div>
+          <Button asChild size="sm" className="gap-1.5 btn-press">
+            <Link href="/apps?trial=true">
+              <Zap className="h-4 w-4" />
+              Start your $1 trial
+            </Link>
+          </Button>
         </CardContent>
       </Card>
     );
