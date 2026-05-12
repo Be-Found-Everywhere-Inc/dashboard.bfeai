@@ -66,8 +66,9 @@ const LITE_TRIAL_REDIRECT_URL = `${DASHBOARD_URL}/apps?trial=true`;
 /**
  * Valid plan slugs for GET ?plan= parameter. Marketing CTAs hit this endpoint
  * directly (no login). The only supported new-user entry is the unified Lite
- * trial; the legacy per-app slugs below are 303-redirected to /apps instead so
- * existing campaign URLs don't 404 while marketing migrates.
+ * trial; the legacy per-app slugs below are treated as aliases for `lite-trial`
+ * so existing campaign URLs still convert cold traffic into Stripe Checkout
+ * while marketing copy migrates to the canonical slug.
  */
 const VALID_PLANS = new Set(["lite-trial"]);
 
@@ -97,8 +98,11 @@ export const handler: Handler = async (event) => {
   }
 
   // -------------------------------------------------------------------------
-  // GET: Direct checkout links for WordPress CTA buttons
-  // Usage: ?plan=keywords-trial | labs-trial | keywords | labs
+  // GET: Direct checkout links for WordPress CTA buttons.
+  // Canonical usage: ?plan=lite-trial — sends the visitor to Stripe Checkout
+  // for the unified $1/7-day Lite trial. Legacy slugs (bundle-trial,
+  // dual-trial, keywords-trial, labs-trial, keywords, labs, bundle) are
+  // aliased to lite-trial so existing campaign URLs still convert.
   // No login required — Stripe collects email, webhook provisions BFEAI account.
   // -------------------------------------------------------------------------
   if (event.httpMethod === "GET") {
@@ -146,16 +150,16 @@ async function handleGetCheckout(
 
     const plan = event.queryStringParameters?.plan;
 
-    // Legacy per-app paid-traffic slugs land on the unified Lite trial entry.
-    if (plan && LEGACY_PLAN_SLUGS.has(plan)) {
-      return {
-        statusCode: 303,
-        headers: { Location: LITE_TRIAL_REDIRECT_URL },
-        body: "",
-      };
-    }
+    // Legacy per-app slugs are aliases for the unified Lite trial. Previously
+    // these 303-redirected to /apps?trial=true, but that path requires auth —
+    // so cold ad traffic was bouncing to /login instead of reaching Stripe.
+    // Sending unauth visitors straight to Stripe Checkout (which collects email
+    // and triggers the unauthenticated webhook provisioning path) is the only
+    // way the funnel actually converts.
+    const effectivePlan =
+      plan && LEGACY_PLAN_SLUGS.has(plan) ? "lite-trial" : plan;
 
-    if (!plan || !VALID_PLANS.has(plan)) {
+    if (!effectivePlan || !VALID_PLANS.has(effectivePlan)) {
       return {
         statusCode: 400,
         headers: { "Content-Type": "text/plain" },
@@ -163,7 +167,7 @@ async function handleGetCheckout(
       };
     }
 
-    const session = await createCheckoutSessionForPlan(plan);
+    const session = await createCheckoutSessionForPlan(effectivePlan);
 
     if (!session.url) {
       return {
