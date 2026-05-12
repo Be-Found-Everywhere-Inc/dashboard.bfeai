@@ -147,6 +147,33 @@ test.describe('Signup Flow', () => {
     await expect(page.locator('text=/strong|good/i')).toBeVisible();
   });
 
+  test('successful email signup lands on dashboard, not login', async ({ page }) => {
+    // Regression: previously router.push('/') after signup soft-navigated before
+    // the freshly-set bfeai_session cookie was attached to the next request, so
+    // middleware bounced the user to /login?redirect=/. We now use a hard nav
+    // (window.location.assign) so the cookie rides along.
+    const testUser = generateTestUser();
+
+    await page.goto('/signup');
+    await page.fill('[name="fullName"]', testUser.fullName);
+    await page.fill('[name="email"]', testUser.email);
+    await page.fill('[name="password"]', testUser.password);
+    await page.fill('[name="confirmPassword"]', testUser.password);
+    await page.locator('#ageConfirmation').click();
+    await page.locator('#agreeToTerms').click();
+    await page.click('button[type="submit"]');
+
+    // Should reach dashboard home, NOT /login?redirect=/
+    await page.waitForURL(/\/(?:\?.*)?$/, { timeout: 10000 });
+    expect(page.url()).not.toContain('/login');
+
+    // Verify session cookie is set (the whole point — proves the hard nav
+    // carried the SSO cookie, so middleware admitted us instead of bouncing).
+    const sessionCookie = await getSessionCookie(page);
+    expect(sessionCookie).toBeDefined();
+    expect(sessionCookie?.value).toBeTruthy();
+  });
+
   test('company field is optional', async ({ page }) => {
     const testUser = generateTestUser();
 

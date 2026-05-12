@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useForm } from 'react-hook-form';
@@ -80,7 +79,6 @@ const FEATURES = [
 ];
 
 export default function SignupPageClient() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [recaptchaReady, setRecaptchaReady] = useState(false);
   const { getToken } = useRecaptcha(RECAPTCHA_SITE_KEY, 'signup');
@@ -190,10 +188,13 @@ export default function SignupPageClient() {
         userId: result.user?.id,
       });
 
-      // Redirect to dashboard home — gives new users the overview, not the profile-edit page.
+      // Hard nav (not router.push) so the browser sends the freshly-set
+      // bfeai_session cookie on the next request — middleware otherwise
+      // sees no cookie on a soft client-side nav and bounces to /login.
+      // Brief delay lets the success toast render before the page unloads.
       setTimeout(() => {
-        router.push('/');
-      }, 1000);
+        window.location.assign('/');
+      }, 600);
     } catch (error) {
       console.error('Signup error:', error);
       toast.error('An error occurred during signup');
