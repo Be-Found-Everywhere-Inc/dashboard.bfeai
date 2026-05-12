@@ -41,7 +41,7 @@ export async function sendStandardWelcomeEmail(
     });
 
     const resend = new Resend(apiKey);
-    const fromEmail = process.env.RESEND_FROM_EMAIL ?? "BFEAI <noreply@bfeai.com>";
+    const fromEmail = process.env.RESEND_FROM_EMAIL ?? '"Bill from BFEAI" <bill@noreply.bfeai.com>';
 
     const { error } = await resend.emails.send({
       from: fromEmail,
