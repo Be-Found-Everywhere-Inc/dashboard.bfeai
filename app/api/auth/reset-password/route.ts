@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { logSecurityEvent } from '@/lib/security/log-event';
 
 const resetPasswordSchema = z.object({
   token: z.string().min(1).optional(),
@@ -13,34 +14,6 @@ const resetPasswordSchema = z.object({
   message: 'Either token or code is required',
   path: ['token'],
 });
-
-async function logSecurityEvent(
-  eventType: string,
-  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
-  userId: string | null,
-  request: NextRequest,
-  details?: Record<string, any>
-) {
-  try {
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
-
-    const ip = request.headers.get('x-forwarded-for') ||
-               request.headers.get('x-real-ip') ||
-               'unknown';
-
-    await supabase.from('security_events').insert({
-      event_type: eventType,
-      severity,
-      user_id: userId,
-      ip_address: ip,
-      user_agent: request.headers.get('user-agent') || 'unknown',
-      details,
-    });
-  } catch (error) {
-    console.error('Failed to log security event:', error);
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {

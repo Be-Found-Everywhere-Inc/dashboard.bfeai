@@ -22,6 +22,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { logSecurityEvent } from '@/lib/security/log-event';
 
 /**
  * Build a Set-Cookie header string for clearing a cookie.
@@ -92,37 +93,6 @@ function buildAllClearCookieStrings(): string[] {
   }
 
   return cookies;
-}
-
-/**
- * Internal helper to log security events
- * (Inline version to avoid circular dependencies)
- */
-async function logSecurityEvent(
-  eventType: string,
-  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
-  userId: string | null,
-  request: NextRequest,
-  details?: Record<string, any>
-) {
-  try {
-    const supabase = await createClient();
-
-    const ip = request.headers.get('x-forwarded-for') ||
-               request.headers.get('x-real-ip') ||
-               'unknown';
-
-    await supabase.from('security_events').insert({
-      event_type: eventType,
-      severity,
-      user_id: userId,
-      ip_address: ip,
-      user_agent: request.headers.get('user-agent') || 'unknown',
-      details,
-    });
-  } catch (error) {
-    console.error('Failed to log security event:', error);
-  }
 }
 
 /**

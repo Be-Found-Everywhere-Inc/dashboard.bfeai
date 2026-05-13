@@ -9,38 +9,9 @@ import {
   clearFailedAttempts,
 } from '@/lib/security/account-lockout';
 import { verifyRecaptcha, isRecaptchaEnabled } from '@/lib/security/recaptcha';
+import { logSecurityEvent } from '@/lib/security/log-event';
 
 const USE_MOCK_AUTH = process.env.NEXT_PUBLIC_USE_MOCK_AUTH === 'true';
-
-async function logSecurityEvent(
-  eventType: string,
-  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
-  userId: string | null,
-  request: NextRequest,
-  details?: Record<string, any>
-) {
-  try {
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
-
-    // Get IP address from headers
-    const ip = request.headers.get('x-forwarded-for') ||
-               request.headers.get('x-real-ip') ||
-               'unknown';
-
-    await supabase.from('security_events').insert({
-      event_type: eventType,
-      severity,
-      user_id: userId,
-      ip_address: ip,
-      user_agent: request.headers.get('user-agent') || 'unknown',
-      details,
-    });
-  } catch (error) {
-    console.error('Failed to log security event:', error);
-    // Don't fail the request if logging fails
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {

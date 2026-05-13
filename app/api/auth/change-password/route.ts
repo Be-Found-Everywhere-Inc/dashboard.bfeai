@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { JWTService } from '@/lib/auth/jwt';
 import { z } from 'zod';
+import { logSecurityEvent } from '@/lib/security/log-event';
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
@@ -11,34 +12,6 @@ const changePasswordSchema = z.object({
     .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
     .regex(/[0-9]/, 'Password must contain at least one number'),
 });
-
-async function logSecurityEvent(
-  eventType: string,
-  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
-  userId: string | null,
-  request: NextRequest,
-  details?: Record<string, any>
-) {
-  try {
-    const { createClient } = await import('@/lib/supabase/server');
-    const supabase = await createClient();
-
-    const ip = request.headers.get('x-forwarded-for') ||
-               request.headers.get('x-real-ip') ||
-               'unknown';
-
-    await supabase.from('security_events').insert({
-      event_type: eventType,
-      severity,
-      user_id: userId,
-      ip_address: ip,
-      user_agent: request.headers.get('user-agent') || 'unknown',
-      details,
-    });
-  } catch (error) {
-    console.error('Failed to log security event:', error);
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
